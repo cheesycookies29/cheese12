@@ -456,3 +456,38 @@ test('seat on Yes: an event made before 0.74 (no setting) seats on Yes too; only
   assert.equal(seatsOnYes({ settings: { autoSeatOnConfirm: true } }), true);
   assert.equal(seatsOnYes({ settings: { autoSeatOnConfirm: false } }), false);
 });
+
+test('0.74.2: the opening text and closing note are formatted text: HTML in the email and on the page, plain text in the text part', async () => {
+  const { invitationMessage, rsvpMessage, textWithLink, messageHtml, plainRich } = await import('../server/customapp/events/message.js');
+  const { cleanInvitation } = await import('../server/customapp/events/engine.js');
+  // Saved as the editor writes it: line breaks and list indentation kept, control characters out.
+  const inv = cleanInvitation({ intro: 'Join us **this year**.\r\n\r\n- Dinner\n  - Main course\n- Awards\u0007\n\n<img src=x onerror=alert(1)> [our site](https://ltdc-core.com) [bad](javascript:alert(1))', closing: '*This email is sent automatically. Please do not reply.*' });
+  assert.match(inv.intro, /\n {2}- Main course/);
+  assert.doesNotMatch(inv.intro, /\u0007|\r/);
+  const ev = { name: 'Legati YEP', date: '2026-12-09', venue: 'Shangri-La', settings: { invitation: inv } };
+  const g = { id: 'g1', name: { first: 'Ana', last: 'Cruz', display: 'Ana Cruz' }, email: 'ana@example.com' };
+  const msg = invitationMessage(ev, g);
+  const text = textWithLink(msg.body, 'https://ltdc-core.com/event/yep#i=tok');
+  assert.match(text, /Join us this year\.\n\n• Dinner\n {2}• Main course\n• Awards/);
+  assert.match(text, /This email is sent automatically\. Please do not reply\.\n\nLegati YEP$/);
+  assert.doesNotMatch(text, /\{\{\/?rich\}\}|\*\*/);
+  const html = messageHtml(ev, msg.body, { link: 'https://ltdc-core.com/event/yep#i=tok', qrCid: 'q1' });
+  assert.match(html, /Join us <strong>this year<\/strong>\./);
+  assert.match(html, /<ul style="[^"]+"><li style="[^"]+">Dinner<ul style="[^"]+"><li style="[^"]+">Main course<\/li><\/ul><\/li>/);
+  assert.match(html, /<a style="color:#5d0013;text-decoration:underline" href="https:\/\/ltdc-core\.com\/?"[^>]*>our site<\/a>/);
+  assert.match(html, /<em>This email is sent automatically\. Please do not reply\.<\/em>/);
+  // Nothing typed becomes HTML: the tag is shown as text, the javascript: link as its words.
+  assert.doesNotMatch(html, /<img src=x|href="javascript/i);
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(html, /\{\{\/?rich\}\}/);
+  // The seat email ends with the same closing note.
+  const yes = rsvpMessage(ev, { ...g, seat: { tableId: 't', seatNo: 3 } }, { number: 7 }, { withLink: true });
+  assert.match(textWithLink(yes.body, 'https://x'), /Please do not reply\.\n\nLegati YEP$/);
+  assert.match(messageHtml(ev, yes.body, { link: 'https://x' }), /<em>This email is sent automatically/);
+  // Text queued before 0.74.2 (no formatted blocks) is sent as it was.
+  assert.equal(plainRich('Dear Ana,\n\nJoin us.\n'), 'Dear Ana,\n\nJoin us.\n');
+  // No opening text: the default sentence; no closing note: nothing extra.
+  const plain = textWithLink(invitationMessage({ ...ev, settings: { invitation: {} } }, g).body, 'https://x');
+  assert.match(plain, /Dear Ana Cruz,\n\nYou are invited to Legati YEP\.\n\n/);
+  assert.match(plain, /check in\.\n\nLegati YEP$/);
+});

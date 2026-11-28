@@ -5,6 +5,7 @@
 // The message is from the event's own address (settings.emailFrom, with settings.replyTo), never
 // from the IT Service Desk's mailbox: a guest's reply must not become a helpdesk ticket.
 import { fmtManila } from '../../../shared/customapp/time.js';
+import { renderRich, richToText } from '../../../shared/richtext.js';
 import { seatsOnYes } from './model.js';
 
 const KIND_SUBJECT = { assignment: 'your table', update: 'your table has changed', resend: 'your table' };
@@ -14,6 +15,50 @@ export const LINK_SLOT = '{{personal-link}}';
 // The reply email's door line, with the personal QR code in it, or without (see textWithLink).
 const QR_LINE = 'Show this QR code at the door to check in (or open your personal link):';
 const NO_QR_LINE = 'Show the QR code in your invitation email at the door to check in.';
+// Formatted text (0.74.2): the invitation's opening text and closing note are written in the rich
+// text editor and kept as its small Markdown (shared/richtext.js). In a message's stored text they
+// sit between these two lines; the plain-text part shows them as plain text (richToText), the HTML
+// part as formatted HTML (renderRich, which escapes everything, with the email's inline styles).
+// Text queued before 0.74.2 has no such lines and is sent as it was.
+const RICH_START = '{{rich}}';
+const RICH_END = '{{/rich}}';
+const richBlock = (md) => (String(md || '').trim() ? [RICH_START, ...String(md).trim().split('\n'), RICH_END] : []);
+// The text with each formatted block as plain text.
+export function plainRich(body) {
+  return String(body).replace(/\{\{rich\}\}\n([\s\S]*?)\n?\{\{\/rich\}\}/g, (_, md) => mdToPlain(md));
+}
+// Markdown as plain text, keeping list items as "• ", "1." and "☐ " (richToText drops the marks).
+const KEEP = '\ue020';
+function mdToPlain(md) {
+  const lines = String(md).split('\n').map((l) => {
+    const m = l.match(/^(\s*)([-*+]|\d{1,9}[.)])\s+(?:\[([ xX])\]\s+)?(.*)$/);
+    if (!m) return l;
+    const mark = /\d/.test(m[2]) ? `${parseInt(m[2], 10)}.` : m[3] !== undefined ? (m[3].trim() ? '☑' : '☐') : '•';
+    return `${KEEP}${m[1]}${mark} ${m[4]}`;
+  });
+  return richToText(lines.join('\n')).split(KEEP).join('').replace(/\n{3,}/g, '\n\n').trim();
+}
+// Formatted text as email HTML: the renderer's tags with inline styles (email programs ignore style
+// sheets), checklist boxes as characters (they drop form fields), no pictures (none can be added).
+const P = 'margin:0 0 12px;font-size:16px;line-height:1.5;color:#111827';
+export function emailRich(md) {
+  return renderRich(md, { image: () => null })
+    .replace(/<p class="rich-missing">[^<]*<\/p>/g, '').replace(/<span class="rich-missing">[^<]*<\/span>/g, '')
+    .replace(/<input type="checkbox" disabled checked[^>]*\/> /g, '☑ ').replace(/<input type="checkbox" disabled[^>]*\/> /g, '☐ ')
+    .replace(/<p>/g, `<p style="${P}">`)
+    .replace(/<h3>/g, '<h3 style="margin:16px 0 8px;font-size:20px;line-height:1.3;color:#5d0013">')
+    .replace(/<h4>/g, '<h4 style="margin:14px 0 6px;font-size:18px;line-height:1.3;color:#111827">')
+    .replace(/<h5>/g, '<h5 style="margin:12px 0 6px;font-size:16px;line-height:1.3;color:#111827">')
+    .replace(/<(ul|ol)( start="\d+")?( class="rich-tasks")?>/g, (_, t, start = '') => `<${t}${start} style="margin:0 0 12px;padding-left:24px;font-size:16px;line-height:1.5;color:#111827">`)
+    .replace(/<li( class="[^"]*")?>/g, '<li style="margin:0 0 4px">')
+    .replace(/<blockquote>/g, '<blockquote style="margin:0 0 12px;padding:4px 0 4px 14px;border-left:4px solid #c28618;color:#374151">')
+    .replace(/<a href=/g, '<a style="color:#5d0013;text-decoration:underline" href=')
+    .replace(/<code>/g, '<code style="font-family:Consolas,Menlo,monospace;background:#f3f4f6;padding:1px 4px;border-radius:4px">')
+    .replace(/<pre>/g, '<pre style="margin:0 0 12px;padding:10px;background:#f3f4f6;border-radius:6px;white-space:pre-wrap;font-size:14px">')
+    .replace(/<hr \/>/g, '<hr style="border:0;border-top:1px solid #e5e7eb;margin:16px 0" />')
+    .replace(/<div class="rich-table"><table>/g, '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 12px;font-size:15px">').replace(/<\/table><\/div>/g, '</table>')
+    .replace(/<(th|td)( class="ta-(center|right)")?>/g, (_, t, c, al) => `<${t} style="border:1px solid #e5e7eb;padding:6px 10px;text-align:${al || 'left'}${t === 'th' ? ';background:#f9fafb' : ''}">`);
+}
 
 // The fields of a caOutbox record for this guest's seat now: { guestId, kind, to, subject, body, seat }.
 export function seatMessage(ev, g, table, kind = 'assignment') {
@@ -83,7 +128,8 @@ export function invitationMessage(ev, g) {
   const body = [
     `Dear ${nameOf(g) || 'guest'},`,
     '',
-    ...intro.split(/\n+/).flatMap((p) => [p, '']),
+    ...richBlock(intro),
+    '',
     ...eventDetails(ev).map((l) => `    ${l}`),
     '',
     closes ? `Please tell us whether you will attend by ${fmtManila(closes)}:` : 'Please tell us whether you will attend:',
@@ -92,6 +138,8 @@ export function invitationMessage(ev, g) {
     '',
     `This link is yours alone: please do not forward it. When you say yes, ${seatsOnYes(ev) ? 'we reserve your seat at once and email you your table and seat' : 'we email you your table and seat'}.`,
     'On the night, show the QR code in this email at the door (or open the link) to check in.',
+    '',
+    ...richBlock(inv.closing),
     '',
     ev.name,
   ].filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n');
@@ -116,6 +164,8 @@ export function rsvpMessage(ev, g, table, { update = false, withLink = false } =
     '',
     'Your personal link also lets you change your answer before replies close.',
     '',
+    ...richBlock(inviteOf(ev).closing),
+    '',
     ev.name,
   ].filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n');
   const subject = seat ? `${ev.name}: ${update ? 'your table has changed' : 'your seat is reserved'} (${where})` : `${ev.name}: thank you for your reply`;
@@ -124,7 +174,8 @@ export function rsvpMessage(ev, g, table, { update = false, withLink = false } =
 const cleanSubject = (s) => String(s || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 160);
 
 // The text of a message as sent: the personal link in its place (or its line removed).
-export function textWithLink(body, link) {
+export function textWithLink(rawBody, link) {
+  const body = plainRich(rawBody);
   return link ? body.split(LINK_SLOT).join(link) : withoutLink(body).split('\n').filter((l) => l.trim() !== LINK_SLOT).join('\n').replace(/\n{3,}/g, '\n\n');
 }
 // A reply email whose link cannot go (the guest's link changed before it was sent): the door line
@@ -141,7 +192,20 @@ export function messageHtml(ev, body, { link = '', qrCid = '', button = 'Reply t
     if (box.length) blocks.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 16px;border-left:4px solid #c28618;background:#fbf6ec"><tr><td style="padding:10px 16px;font-size:16px;line-height:1.6;color:#111827">${box.map(escHtml).join('<br>')}</td></tr></table>`);
     box = [];
   };
+  let rich = null;
   for (const raw of body.split('\n')) {
+    if (rich) {
+      if (raw.trim() === RICH_END) {
+        blocks.push(emailRich(rich.join('\n')));
+        rich = null;
+      } else rich.push(raw);
+      continue;
+    }
+    if (raw.trim() === RICH_START) {
+      flush();
+      rich = [];
+      continue;
+    }
     if (/^ {4}\S/.test(raw)) {
       box.push(raw.trim());
       continue;
@@ -158,6 +222,7 @@ export function messageHtml(ev, body, { link = '', qrCid = '', button = 'Reply t
     }
     blocks.push(`<p style="margin:0 0 12px;font-size:16px;line-height:1.5;color:#111827">${escHtml(line)}</p>`);
   }
+  if (rich) blocks.push(emailRich(rich.join('\n')));
   flush();
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escHtml(ev.name)}</title></head><body style="margin:0;padding:0;background:#f5f6f8"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px"><tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif"><p style="margin:0 0 16px;font-size:20px;font-weight:bold;color:#5d0013">${escHtml(ev.name)}</p>${blocks.join('')}</td></tr></table></td></tr></table></body></html>`;
 }

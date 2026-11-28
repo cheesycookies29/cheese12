@@ -25,6 +25,8 @@ const STORE = `ca-ev:${code}`;
 const KEY = `ca-k:${code}`;
 const STILL_MS = 4 * 60000;
 
+import { renderRich } from '/shared/richtext.js';
+
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const clock = (d) => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
 const store = {
@@ -223,7 +225,7 @@ function renderInvite(v, { focus = true, changing = false } = {}) {
   const ask = v.canAnswer && (!v.rsvp || changing);
   const buttons = ask ? `${v.event.rsvpClosesAt ? `<p class="small-print">Please reply by ${esc(fmtWhen(v.event.rsvpClosesAt))}.</p>` : ''}<button type="button" id="rsvp-yes">Yes, I will attend</button><button type="button" class="secondary" id="rsvp-no">No, I can't attend</button>`
     : v.canAnswer ? `<button type="button" class="link" id="rsvp-change">Change my answer</button>` : !v.rsvp ? '<p class="note">Replies are closed. Please contact the organisers.</p>' : '';
-  show(`<h1 tabindex="-1">${head}</h1>${!v.rsvp && v.event.intro ? `<p>${esc(v.event.intro).replace(/\n+/g, '</p><p>')}</p>` : ''}<p class="ev-title"><strong>${esc(v.event.name)}</strong></p>${details}${status}${notice}${buttons}`, { focus });
+  show(`<h1 tabindex="-1">${head}</h1>${!v.rsvp && v.event.intro ? `<div class="ev-intro">${renderRich(v.event.intro, { image: () => null })}</div>` : ''}<p class="ev-title"><strong>${esc(v.event.name)}</strong></p>${details}${status}${notice}${buttons}`, { focus });
   const send = async (answer, b) => {
     b.disabled = true;
     b.textContent = 'Sending…';

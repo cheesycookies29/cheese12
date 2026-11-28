@@ -26,6 +26,7 @@ import { fmtManila, toManilaInput } from '/shared/customapp/time.js';
 import { livePoll } from './customapp-live.js';
 import { mountRoomPlan } from './customapp-room.js';
 import qrcode from '../vendor/qrcode.js';
+import { richEditor, wireRichEditor } from '../richeditor.js';
 
 const STORE = 'core-ca-event';
 const opId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -1106,8 +1107,18 @@ export async function eventControlView(el, params, query) {
           title: 'Invitation preview', wide: true, submitLabel: null,
           subtitle: `As ${p.guest || 'a guest'} gets it. The link here is a sample that does not work.`,
           body: html`<dl class="ca-mailhead"><dt>From</dt><dd>${d.from || 'no address yet'}</dd>${p.replyTo ? html`<dt>Reply-To</dt><dd>${p.replyTo}</dd>` : ''}<dt>To</dt><dd>${p.to || 'the guest'}</dd><dt>Subject</dt><dd data-preview-subject>${p.subject}</dd></dl>
-            <div class="ca-mail-preview"><pre class="ca-mail-text" data-preview-text>${p.text}</pre><div class="ca-qr ca-mail-qr">${raw(p.qrSvg)}<p class="small muted">The QR code is in the email itself, with a button for the link.</p></div></div>`,
+            <iframe class="ca-mail-frame" title="The email as it looks in an email program" sandbox="" data-preview-html></iframe>
+            <details class="ca-mail-plain"><summary>Plain-text version (for email programs that do not show formatting)</summary><pre class="ca-mail-text" data-preview-text>${p.text}</pre></details>`,
         });
+        // The HTML part, shown sandboxed (no scripts, no links followed); the QR code's cid: picture
+        // becomes the same code as an inline SVG.
+        const frame = document.querySelector('[data-preview-html]');
+        if (frame) {
+          const svg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(p.qrSvg)}`;
+          const url = URL.createObjectURL(new Blob([String(p.html || '').split('cid:preview-qr').join(svg)], { type: 'text/html' }));
+          frame.src = url;
+          frame.addEventListener('load', () => setTimeout(() => URL.revokeObjectURL(url), 1000), { once: true });
+        }
       } catch (err) {
         toast(err.message, 'error');
       }
@@ -1121,23 +1132,26 @@ export async function eventControlView(el, params, query) {
     }));
     on('[data-inv-settings]', () => {
       const st = d.settings;
-      modal({
+      const eds = {};
+      const { form } = modal({
         title: 'Invitation settings',
         subtitle: 'What the invitation says, when replies close, and whether a Yes reserves a seat at once.',
         body: html`<label class="field"><span>Subject</span><input name="subject" value="${st.subject || ''}" maxlength="160" placeholder="Invitation: ${ev.name}" /></label>
-          <label class="field"><span>Opening text</span><textarea name="intro" rows="4" maxlength="1500" placeholder="You are invited to ${ev.name}.">${st.intro || ''}</textarea></label>
+          <div data-ed="intro">${richEditor({ name: 'intro', value: st.intro || '', label: 'Opening text', pictures: false, compact: true, max: 4000, placeholder: `You are invited to ${ev.name}.`, hint: html`Bold, italics, links, lists and headings show in the email and on the guest's page. Type <kbd>/</kbd> for more.` })}</div>
           <div class="ca-pair"><label class="field"><span>Time</span><input name="time" value="${st.time || ''}" maxlength="60" placeholder="6:00 PM" /></label><label class="field"><span>Dress code</span><input name="dressCode" value="${st.dressCode || ''}" maxlength="80" placeholder="Cocktail" /></label></div>
           <label class="field"><span>Venue</span><input name="venue" value="${d.venue || ''}" maxlength="160" /></label>
           <label class="field"><span>Reply by (Manila time)</span><input type="datetime-local" name="rsvpDeadline" value="${toManilaInput(st.rsvpDeadline)}" /><small class="muted">Replies also close when self check-in opens. Until then a guest can change their answer.</small></label>
           <label class="field"><span>Public address for the links</span><input name="publicUrl" value="${st.publicUrl || ''}" maxlength="120" placeholder="${d.origin || 'https://ltdc-core.com'}" /><small class="muted">Empty: the address you are using CORE on now (${d.origin}).</small></label>
+          <div data-ed="closing">${richEditor({ name: 'closing', value: st.closing || '', label: 'Closing note (optional)', pictures: false, compact: true, max: 2000, placeholder: 'For example: This email is sent automatically. Please do not reply to it.', hint: 'At the end of the invitation and of the seat email, before the event\'s name.' })}</div>
           <label class="field check"><input type="checkbox" name="autoSeat" ${st.autoSeatOnConfirm ? 'checked' : ''} /><span>Seat on Yes: a guest who says Yes gets the best table for them and its lowest open chair at once, held until the night (preferred guests keep their reserved seats)</span></label>`,
         submitLabel: 'Save',
         onSubmit: async (f) => {
-          await api.patch(base, { rev: d.rev, venue: f.venue.value, settings: { autoSeatOnConfirm: f.autoSeat.checked, invitation: { subject: f.subject.value, intro: f.intro.value, time: f.time.value, dressCode: f.dressCode.value, rsvpDeadline: f.rsvpDeadline.value, publicUrl: f.publicUrl.value } } });
+          await api.patch(base, { rev: d.rev, venue: f.venue.value, settings: { autoSeatOnConfirm: f.autoSeat.checked, invitation: { subject: f.subject.value, intro: eds.intro ? eds.intro.value() : f.intro.value, closing: eds.closing ? eds.closing.value() : f.closing.value, time: f.time.value, dressCode: f.dressCode.value, rsvpDeadline: f.rsvpDeadline.value, publicUrl: f.publicUrl.value } } });
           toast('Invitation settings saved.');
           loadInvites();
         },
       });
+      for (const k of ['intro', 'closing']) eds[k] = wireRichEditor(form.querySelector(`[data-ed="${k}"]`));
     });
   }
 

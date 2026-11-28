@@ -29,6 +29,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.74.2-alpha',
+    date: '2026-11-28',
+    title: 'Invitations: formatted opening text and a closing note',
+    modules: ['customapp'],
+    notes: 'The invitation\'s text uses the rich text editor (public/js/richeditor.js) and is kept as its small Markdown (shared/richtext.js). server/customapp/events/message.js: emailRich(), plainRich().',
+    changes: [
+      ['improved', 'customapp', 'Invitation settings: the Opening text (now up to 4,000 characters) and a new Closing note (up to 2,000) are written in the rich text editor, without pictures. In a stored message they sit between {{rich}} lines: the HTML part renders them with renderRich (everything escaped; javascript: links stay text) and inline styles for email programs, checklist boxes as characters; the plain-text part keeps list marks (•, 1., ☐). The closing note ends the invitation and the seat email. Messages queued before have no such lines and are sent as they were. Saving keeps line breaks and list indentation (the old cleaning collapsed spaces).'],
+      ['improved', 'customapp', 'The guest page shows the opening text formatted, and Preview shows the HTML email in a sandboxed frame (the QR code inline), with the plain text under it.'],
+    ],
+  },
+  {
     version: '0.74.1-alpha',
     date: '2026-11-28',
     title: 'Event emails have their own switch on the outgoing mail server',

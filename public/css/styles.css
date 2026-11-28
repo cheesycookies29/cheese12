@@ -4650,3 +4650,8 @@ a.dm-main:hover strong { color: var(--brand-text); }
 .ca-seat-choice { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px 4px; margin: 0 0 12px; }
 .ca-seat-choice legend { padding: 0 4px; font-size: 13px; color: var(--text-2); }
 .ca-seat-choice .field.check { margin: 4px 0; }
+
+/* Invitation preview (0.74.2): the HTML email in a sandboxed frame, the plain text under it. */
+.ca-mail-frame { display: block; width: 100%; height: 560px; border: 1px solid var(--border); border-radius: 10px; background: #f5f6f8; }
+.ca-mail-plain { margin-top: 10px; }
+.ca-mail-plain summary { cursor: pointer; color: var(--muted); font-size: 14px; }

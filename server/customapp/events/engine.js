@@ -956,11 +956,16 @@ export const STATUS_TOKENS_MAX = 5;
 // paragraphs), the time and dress code shown with the date and venue, when replies close, and the
 // address the links use when it is not the one the Super Administrator works on.
 const multiline = (v, max) => (v == null || typeof v === 'object' ? '' : String(v)).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/g, ' ').replace(/[​-‏‪-‮⁦-⁩﻿]/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, max);
+// Formatted text (0.74.2, the rich text editor's Markdown): line breaks and indentation kept (lists
+// nest by it), control and direction-changing characters removed. It is only ever shown through
+// renderRich, which escapes it.
+const richText = (v, max) => (v == null || typeof v === 'object' ? '' : String(v)).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, ' ').replace(/[\u202a-\u202e\u2066-\u2069\ufeff]/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, max);
 export function cleanInvitation(input, before = {}) {
   const s = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
   const out = { ...before };
   if (s.subject !== undefined) out.subject = cleanText(s.subject, 160);
-  if (s.intro !== undefined) out.intro = multiline(s.intro, 1500);
+  if (s.intro !== undefined) out.intro = richText(s.intro, 4000);
+  if (s.closing !== undefined) out.closing = richText(s.closing, 2000);
   if (s.time !== undefined) out.time = cleanText(s.time, 60);
   if (s.dressCode !== undefined) out.dressCode = cleanText(s.dressCode, 80);
   if (s.rsvpDeadline !== undefined) {

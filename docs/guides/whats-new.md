@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Formatted invitation text (0.74.2)
+- **Event control → Invitations → Invitation settings…**: the **Opening text** uses the editor of task descriptions (bold, italics, links, lists, headings), and a new **Closing note** ends the invitation and the seat email (for example, that the email is sent automatically). **Preview** shows the email as it looks in an email program. See [Send the invitations](custom-app-events#send-the-invitations-super-administrator).
+
 ### Event emails have their own switch (0.74.1)
 - **IT Service Desk → Settings → Sending email** has two switches: **Send replies by email** for the helpdesk and the Projects digest, and **Use for CUSTOM APP event emails** for invitations and seat emails. Event invitations can go through Amazon SES from the event's own domain without the helpdesk's mail (from another domain) going through it and landing in spam. Settings saved before keep working as they did until changed. See [Set up email with Amazon SES](admin#set-up-email-with-amazon-ses).
 
