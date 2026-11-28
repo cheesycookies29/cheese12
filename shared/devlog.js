@@ -29,6 +29,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.75.1-alpha',
+    date: '2026-11-28',
+    title: 'Company-wide forms as a sliding row on the CORE home',
+    modules: ['system'],
+    notes: 'public/js/carousel.js is the sliding row of "Your modules" made reusable (the arrows, the dots, keys, the fade at the edges); the modules row and the home\'s Forms & downloads both use it.',
+    changes: [
+      ['improved', 'system', 'Forms & downloads on the CORE home: more than 4 company-wide forms (HOME_FORMS_LIST_MAX) show as compact cards (category, title, form code, two lines of description, kind, size, date, Download) in a sliding row, 4 per row on a wide screen down to 1 on a phone, with arrows and dots; "All N" opens /forms/home, the searchable list, which now says "The company-wide forms and files, for everyone". Up to 4 stay as lists by category. Four more company-wide demo forms (reimbursement claim, gate pass, change of personal information, incident report). Guide screenshot forms-home.jpg.'],
+    ],
+  },
+  {
     version: '0.75.0-alpha',
     date: '2026-11-28',
     title: 'Scan QR: staff scan a guest\'s invitation inside Corp Comm YEP tool',

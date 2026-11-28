@@ -407,6 +407,27 @@ export function registerForms(route, db, { blobs, opensModule = () => true, cloc
       description: 'For a new, lost or damaged company ID. Attach an affidavit of loss for a lost ID.',
       versions: [['hr.demo', 40, 'First issue', ['Name, employee number, department, reason (new, lost, damaged)', 'Signature and date']]],
     });
+    // More company-wide forms (0.75.1), so the home shows them as a sliding row.
+    make({
+      title: 'Reimbursement claim', module: 'home', category: 'Requests', code: 'GEN-F-007',
+      description: 'For expenses paid for the company: attach the official receipts and have your head sign.',
+      versions: [['hr.demo', 30, 'First issue', ['Name, department, date, purpose', 'Expenses with official receipt numbers', 'Approved by the department head']]],
+    });
+    make({
+      title: 'Gate pass', module: 'home', category: 'Requests', code: 'GEN-F-009',
+      description: 'For taking company property out of the office: list each item and its asset tag.',
+      versions: [['it.demo', 25, 'First issue', ['Name, date, destination', 'Items and asset tags', 'Approved by IT and the guard on duty']]],
+    });
+    make({
+      title: 'Change of personal information', module: 'home', category: 'Records', code: 'GEN-F-011',
+      description: 'For a new address, civil status, contact number or emergency contact. Attach proof where asked.',
+      versions: [['hr.demo', 20, 'First issue', ['Name, employee number', 'What changes, from and to', 'Proof attached (marriage certificate, billing statement)']]],
+    });
+    make({
+      title: 'Incident report', module: 'home', category: 'Records', code: 'GEN-F-014',
+      description: 'For an accident, a near miss, damaged property or a security incident at work.',
+      versions: [['hr.demo', 12, 'First issue', ['When and where, who was involved', 'What happened, in order', 'Witnesses and the action taken']]],
+    });
     make({
       title: 'Leave application form', module: 'hr', category: 'Leave', code: 'HR-F-012 Rev. 3',
       description: 'The paper form, for leave filed on paper. You can also file leave in Human Resource Management → My Requests.',

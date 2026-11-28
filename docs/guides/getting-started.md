@@ -271,7 +271,9 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 
 ### Get a form
 
-The company's downloadable forms are kept in one place, **Document circulation**, and each module shows its own on **Forms & downloads** in its side menu (for example a leave application in Human Resource Management, an equipment request in IT Asset Management). The company-wide forms (a clearance, a company ID request) are under **Forms & downloads** at the bottom of the **CORE home**. You always get the latest version, and only the forms for your account type in the modules you open.
+The company's downloadable forms are kept in one place, **Document circulation**, and each module shows its own on **Forms & downloads** in its side menu (for example a leave application in Human Resource Management, an equipment request in IT Asset Management). The company-wide forms (a clearance, a company ID request) are under **Forms & downloads** at the bottom of the **CORE home**. Up to 4 show as lists; with more, they show as compact cards in a sliding row, like **Your modules** (swipe, or use the arrows or dots), and **All** opens them as one list you can search. You always get the latest version, and only the forms for your account type in the modules you open.
+
+![Company-wide forms on the CORE home, as a sliding row](forms-home.jpg)
 
 ![Forms & downloads in Human Resource Management](forms-downloads.jpg)
 

@@ -11,6 +11,7 @@ import { api } from '../api.js';
 import { html, mount, modal, toast, confirmDialog, badge, fmtDate } from '../ui.js';
 import { icon } from '../icons.js';
 import { uploadInPieces } from '../chunked.js';
+import { carousel } from '../carousel.js';
 
 const STATUS_BADGE = { draft: 'amber', published: 'green', retired: 'gray' };
 const option = (v, l, sel) => html`<option value="${v}" ${sel ? 'selected' : ''}>${l}</option>`;
@@ -70,7 +71,7 @@ export async function formsView(el, params) {
   const moduleId = params.module;
   const d = await api.get(`/api/forms?module=${encodeURIComponent(moduleId)}`);
   mount(el, html`<header class="page-head">
-      <div><h1>${icon('download', 22)} Forms &amp; downloads</h1><p class="muted">The forms and files ${d.moduleName} gives you, always the latest version. Download one, fill it in, and hand it in where it says.</p></div>
+      <div><h1>${icon('download', 22)} Forms &amp; downloads</h1><p class="muted">${moduleId === 'home' ? 'The company-wide forms and files, for everyone' : `The forms and files ${d.moduleName} gives you`}, always the latest version. Download one, fill it in, and hand it in where it says.</p></div>
       ${d.manages ? html`<div class="actions"><a class="btn" href="#/circulation/${moduleId}">${icon('settings', 16)} Document circulation</a></div>` : ''}
     </header>
     ${d.total ? html`${d.total > 4 ? html`<div class="toolbar"><input type="search" data-form-search placeholder="Search forms…" aria-label="Search forms" /></div>` : ''}
@@ -91,9 +92,34 @@ export async function homeForms(section) {
   }
   if (!d.total && !d.manages) return;
   section.hidden = false;
+  // More than 4 forms (0.75.1): compact cards in a sliding row, like "Your modules", with a link to
+  // all of them as a searchable list; up to 4, the lists by category as before.
+  const slide = d.total > HOME_FORMS_LIST_MAX;
   mount(section, html`<div class="card-head"><h2 id="forms-heading">${icon('download')} Forms &amp; downloads</h2>
-      <span class="muted small">Company-wide forms · always the latest version${d.manages ? html` · <a href="#/circulation/home">Document circulation</a>` : ''}</span></div>
-    ${d.total ? html`<div class="form-groups home-forms">${formGroups(d.categories)}</div>` : html`<p class="muted">No company-wide forms yet. Upload one in <a href="#/circulation/home">Document circulation</a>.</p>`}`);
+      <div class="sys-nav"><span class="muted small">Company-wide forms · always the latest version${slide ? html` · <a href="#/forms/home">All ${d.total}</a>` : ''}${d.manages ? html` · <a href="#/circulation/home">Document circulation</a>` : ''}</span>
+        ${slide ? html`<span class="sys-arrows fm-arrows" hidden><button type="button" class="icon-btn" data-fm-prev aria-label="Previous forms" aria-controls="fm-track">${icon('chevronLeft', 18)}</button><button type="button" class="icon-btn" data-fm-next aria-label="More forms" aria-controls="fm-track">${icon('chevronRight', 18)}</button></span>` : ''}</div></div>
+    ${!d.total ? html`<p class="muted">No company-wide forms yet. Upload one in <a href="#/circulation/home">Document circulation</a>.</p>`
+      : slide ? html`<div class="sys-carousel fm-carousel"><ul class="sys-track fm-track" id="fm-track" role="region" aria-labelledby="forms-heading" tabindex="0">${d.categories.flatMap((c) => c.forms.map((f) => formCard(f, c.name)))}</ul></div>
+        <div class="sys-dots fm-dots" hidden></div>`
+      : html`<div class="form-groups home-forms">${formGroups(d.categories)}</div>`}`);
+  if (slide) {
+    const wrap = section.querySelector('.fm-carousel');
+    carousel({ wrap, track: wrap.querySelector('.fm-track'), arrows: section.querySelector('.fm-arrows'), prev: section.querySelector('[data-fm-prev]'), next: section.querySelector('[data-fm-next]'), dots: section.querySelector('.fm-dots'), label: 'Forms' });
+  }
+}
+// Up to this many company-wide forms show as lists on the home; more slide (0.75.1).
+export const HOME_FORMS_LIST_MAX = 4;
+// One form as a compact card in the home's sliding row.
+function formCard(f, category) {
+  const [, ic, kind] = kindOf(f.ext);
+  return html`<li class="fm-card" data-form="${f.id}">
+    <span class="fm-card-top"><span class="form-ic" aria-hidden="true">${icon(ic, 20)}</span><small class="muted fm-card-cat">${category}</small></span>
+    <strong class="form-title fm-card-title" title="${f.title}">${f.title}</strong>
+    ${f.code ? html`<span class="form-code">${f.code}</span>` : ''}
+    ${f.description ? html`<small class="fm-card-desc" title="${f.description}">${f.description}</small>` : ''}
+    <small class="muted fm-card-meta">${kind} · ${sizeLabel(f.size)} · ${day(f.updatedAt)}</small>
+    <a class="btn small-btn fm-card-dl" href="/api/forms/${f.id}/file" download aria-label="Download ${f.title}">${icon('download', 15)} Download</a>
+  </li>`;
 }
 
 // ----- Document circulation -----

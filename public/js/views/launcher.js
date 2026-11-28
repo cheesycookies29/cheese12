@@ -9,6 +9,7 @@ import { unseenCount } from './devlog.js';
 import { html, mount, toast } from '../ui.js';
 import { icon } from '../icons.js';
 import { homeForms } from './forms.js';
+import { carousel } from '../carousel.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -302,66 +303,10 @@ export async function launcherView(el) {
   compact.addEventListener('click', onPin);
 }
 
-// "Your modules" as a carousel, as on the ATLAS home: the cards scroll sideways and snap into place
-// (swipe on a phone, arrows or dots elsewhere, or arrow keys once the row has focus). The arrows
-// and dots only show when some cards are out of view.
+// "Your modules" as a carousel (public/js/carousel.js, shared with the home's Forms & downloads).
 function modulesCarousel(wrap) {
-  const track = wrap.querySelector('#sys-track');
-  const arrows = document.querySelector('.sys-arrows');
-  const prev = document.getElementById('sys-prev');
-  const next = document.getElementById('sys-next');
-  const dots = document.getElementById('sys-dots');
-  const smooth = () => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
-  const cardStep = () => (track.children[1] ? track.children[1].offsetLeft - track.children[0].offsetLeft : track.clientWidth);
-  const perPage = () => Math.max(1, Math.round(track.clientWidth / cardStep()));
-  const pages = () => Math.max(1, Math.ceil(track.children.length / perPage() - 0.01));
-  const atEnd = () => track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
-  const pageNow = () => (atEnd() ? pages() - 1 : Math.min(pages() - 1, Math.round(track.scrollLeft / (cardStep() * perPage()))));
-  const goPage = (n) => track.scrollTo({ left: Math.max(0, n) * cardStep() * perPage(), behavior: smooth() });
-  let drawn = -1;
-  const update = () => {
-    if (!track.isConnected) return;
-    const overflow = track.scrollWidth > track.clientWidth + 2;
-    arrows.hidden = !overflow;
-    dots.hidden = !overflow;
-    wrap.classList.toggle('more-left', overflow && track.scrollLeft > 4);
-    wrap.classList.toggle('more-right', overflow && track.scrollLeft + track.clientWidth < track.scrollWidth - 4);
-    prev.disabled = track.scrollLeft <= 4;
-    next.disabled = atEnd();
-    if (!overflow) return;
-    if (drawn !== pages()) {
-      drawn = pages();
-      dots.innerHTML = Array.from({ length: drawn }, (_, i) => `<button type="button" data-page="${i}" aria-label="Modules, page ${i + 1} of ${drawn}"></button>`).join('');
-    }
-    [...dots.children].forEach((d, i) => d.setAttribute('aria-current', i === pageNow() ? 'true' : 'false'));
-  };
-  prev.addEventListener('click', () => goPage(pageNow() - 1));
-  next.addEventListener('click', () => goPage(pageNow() + 1));
-  dots.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-page]');
-    if (b) goPage(Number(b.dataset.page));
+  return carousel({
+    wrap, track: wrap.querySelector('#sys-track'), arrows: wrap.closest('section').querySelector('.sys-arrows'),
+    prev: document.getElementById('sys-prev'), next: document.getElementById('sys-next'), dots: document.getElementById('sys-dots'), label: 'Modules',
   });
-  track.addEventListener('keydown', (e) => {
-    if (e.target !== track || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
-    e.preventDefault();
-    track.scrollBy({ left: (e.key === 'ArrowRight' ? 1 : -1) * cardStep(), behavior: smooth() });
-  });
-  // A card reached with Tab is brought fully into view.
-  track.addEventListener('focusin', (e) => {
-    const card = e.target.closest('.sys-slot, .sys-card');
-    if (card) card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: smooth() });
-  });
-  let raf = 0;
-  track.addEventListener('scroll', () => {
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(update);
-  }, { passive: true });
-  const ro = new ResizeObserver(() => (track.isConnected ? update() : ro.disconnect()));
-  ro.observe(track);
-  update();
-  // Called after the cards are redrawn (a module pinned or unpinned): the dots are counted again.
-  return () => {
-    drawn = -1;
-    update();
-  };
 }

@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Company-wide forms slide on the CORE home (0.75.1)
+- When there are more than 4 company-wide forms, **Forms & downloads** on the CORE home shows them as compact cards in a sliding row, like **Your modules** (swipe, or use the arrows or dots); **All** opens every one of them as a list you can search. Up to 4 still show as lists by category. See [Getting started](getting-started).
+
 ### Scan QR: scan a guest's invitation inside Corp Comm YEP tool (0.75)
 - **Find guest** and **My queue** have a **Scan QR** button (on a phone, a round button at the bottom right). It reads the QR code in a guest's invitation with the phone's camera, on paper or on the guest's phone, and opens their sheet to **Check in** (and seat them, if they are yours). The guest's personal page no longer opens on the staff phone. **Keep scanning** reopens the scanner after each check-in, for the door. An old, revoked or reception QR code gets a plain message, never another guest. See [Scan a guest's invitation QR](custom-app-events#scan-a-guest-s-invitation-qr).
 
