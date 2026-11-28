@@ -9,11 +9,14 @@ order: 2
 
 ## November 2026
 
+### CUSTOM APP is now Corp Comm YEP tool (0.74.4)
+- The events module is renamed **Corp Comm YEP tool** (**YEP tool** on the compact home tiles), everywhere it is named: the home screen, the menu, Admin panel → Modules and Roles & permissions, the Service Desk's **Sending email** switch (**Use for Corp Comm YEP tool event emails**) and the guides. Nothing else changes: events, guests, seats, links already sent and permissions stay as they are. See [Running an event in Corp Comm YEP tool](custom-app-events).
+
 ### Formatted invitation text (0.74.2)
 - **Event control → Invitations → Invitation settings…**: the **Opening text** uses the editor of task descriptions (bold, italics, links, lists, headings), and a new **Closing note** ends the invitation and the seat email (for example, that the email is sent automatically). **Preview** shows the email as it looks in an email program. See [Send the invitations](custom-app-events#send-the-invitations-super-administrator).
 
 ### Event emails have their own switch (0.74.1)
-- **IT Service Desk → Settings → Sending email** has two switches: **Send replies by email** for the helpdesk and the Projects digest, and **Use for CUSTOM APP event emails** for invitations and seat emails. Event invitations can go through Amazon SES from the event's own domain without the helpdesk's mail (from another domain) going through it and landing in spam. Settings saved before keep working as they did until changed. See [Set up email with Amazon SES](admin#set-up-email-with-amazon-ses).
+- **IT Service Desk → Settings → Sending email** has two switches: **Send replies by email** for the helpdesk and the Projects digest, and **Use for Corp Comm YEP tool event emails** for invitations and seat emails. Event invitations can go through Amazon SES from the event's own domain without the helpdesk's mail (from another domain) going through it and landing in spam. Settings saved before keep working as they did until changed. See [Set up email with Amazon SES](admin#set-up-email-with-amazon-ses).
 
 ### CUSTOM APP: invitations by email, seat on Yes, and check-in by the invitation (0.74)
 - **Invitations**: from **Event control → Invitations**, every guest with an email address gets their own invitation, with a personal link as a button, as an address and as a QR code, from the event's own address. **Preview**, **Send a test…** to any address, **Send invitations**, and **Send again** (a new link) for one guest. Counts of waiting, sent, failed and opened invitations and the answers; guests without an email address are listed. See [Send the invitations](custom-app-events#send-the-invitations-super-administrator).

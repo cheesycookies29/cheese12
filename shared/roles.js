@@ -54,7 +54,7 @@ export const ROLES = {
   // it as the Super Administrator) is the event's own data, not a permission.
   eventstaff: {
     label: 'Event staff',
-    description: 'Registration personnel for events in CUSTOM APP: finds and checks in guests, and seats the guests and tables delegated to them (all of an event as its Super Administrator). Opens CUSTOM APP only.',
+    description: 'Registration personnel for events in Corp Comm YEP tool: finds and checks in guests, and seats the guests and tables delegated to them (all of an event as its Super Administrator). Opens Corp Comm YEP tool only.',
     permissions: ['customapp.use'],
     modules: ['customapp'],
   },
@@ -111,8 +111,8 @@ export const PERMISSION_LABELS = [
   ['forms.helpdesk', 'Document circulation: the forms of IT Service Desk'],
   ['forms.crm', 'Document circulation: the forms of Sales & CRM'],
   ['forms.projects', 'Document circulation: the forms of Project Management'],
-  ['customapp.use', 'CUSTOM APP: open the events they are staff of (what they may do in each is set by its Super Administrator)'],
-  ['customapp.manage', 'CUSTOM APP: create events and hand over an event\'s Super Administrator (password asked again; no guest or table changes)'],
+  ['customapp.use', 'Corp Comm YEP tool: open the events they are staff of (what they may do in each is set by its Super Administrator)'],
+  ['customapp.manage', 'Corp Comm YEP tool: create events and hand over an event\'s Super Administrator (password asked again; no guest or table changes)'],
   ['feedback.view', 'Read feedback sent by users'],
   ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
@@ -126,7 +126,7 @@ export const PERMISSION_GROUPS = [
   { id: 'crm', label: 'Sales & CRM', permissions: ['crm.view', 'crm.edit', 'crm.manage'] },
   { id: 'projects', label: 'Project Management', permissions: ['pm.view', 'pm.edit', 'pm.manage'] },
   { id: 'documents', label: 'Document Management', permissions: ['docs.manage'] },
-  { id: 'customapp', label: 'CUSTOM APP', permissions: ['customapp.use', 'customapp.manage'] },
+  { id: 'customapp', label: 'Corp Comm YEP tool', permissions: ['customapp.use', 'customapp.manage'] },
   { id: 'forms', label: 'Document circulation (downloadable forms)', permissions: ['forms.manage', 'forms.home', 'forms.hr', 'forms.assets', 'forms.helpdesk', 'forms.crm', 'forms.projects'] },
   { id: 'admin', label: 'Admin panel', permissions: ['settings.edit', 'settings.center', 'modules.config', 'audit.view', 'security.monitor', 'devlog.view', 'devlog.edit', 'feedback.view', 'feedback.manage', 'guides.edit', 'users.manage', 'roles.manage', 'data.manage'] },
 ];

@@ -1,9 +1,9 @@
-# YEP 2026 event-day runbook (CUSTOM APP on CORE)
+# YEP 2026 event-day runbook (Corp Comm YEP tool on CORE)
 
 For the **on-call developer** and the event's **Super Administrator**. Print it (it is written to be
 read on paper), fill in the blanks below in pen, and keep it beside the event laptop from 4 December
 to 10 December. Every command is meant to be copied exactly. Desk staff do not need this page: they
-use the staff desk card and the guide (*Help & guides → Running an event in CUSTOM APP → If the
+use the staff desk card and the guide (*Help & guides → Running an event in Corp Comm YEP tool → If the
 system is down*).
 
 Production is `https://ltdc-core.com` (one EC2 server, Ubuntu, the app in `/opt/ltdc-erp`, the

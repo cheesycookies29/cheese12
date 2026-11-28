@@ -23,7 +23,7 @@ export const MODULES = [
   // CUSTOM APP (0.71): client-specific apps behind one registry (server/customapp); the first is a
   // generic event-registration engine (guest lists, check-in and seating). Released dark: off for the
   // company until an administrator turns it on (DEFAULT_OFF).
-  { id: 'customapp', short: 'CUSTOM APP', code: 'MOD-10', name: 'CUSTOM APP', glyph: 'party', status: 'live', tagline: 'Client apps: event registration and seating',
+  { id: 'customapp', short: 'YEP tool', code: 'MOD-10', name: 'Corp Comm YEP tool', glyph: 'party', status: 'live', tagline: 'Corporate Communications: YEP invitations, check-in and seating',
     description: 'Apps made for a client. Events: the guest list, check-in at the desk, and seating by table and chair within each table\'s limit, with one Super Administrator per event.' },
   { id: 'csuite', short: 'C-suite', code: 'MOD-09', name: 'C-suite', glyph: 'gauge', status: 'soon', accent: 'gold', tagline: 'Executive dashboard',
     description: 'The executive dashboard: revenue and pipeline, headcount and payroll cost, projects at risk and service levels from every module, on one page.' },

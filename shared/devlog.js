@@ -29,6 +29,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.74.4-alpha',
+    date: '2026-11-28',
+    title: 'CUSTOM APP renamed Corp Comm YEP tool',
+    modules: ['customapp'],
+    notes: 'Only the name people see changes (shared/modules.js name and short name, tagline; labels in roles, audit, settings catalogue, screens, server messages, guides, the event-day runbook). The module id customapp, its permissions (customapp.use, customapp.manage), routes, collections (ca*), file names and earlier dev log and what\'s-new entries keep the old name.',
+    changes: [
+      ['improved', 'customapp', 'Name Corp Comm YEP tool, short name YEP tool (compact home tiles), tagline "Corporate Communications: YEP invitations, check-in and seating"; screenshots showing the name retaken.'],
+    ],
+  },
+  {
     version: '0.74.3-alpha',
     date: '2026-11-28',
     title: 'Event readiness: the load test, 15-minute off-server backups with the freeze in one command, and the event-day runbook',

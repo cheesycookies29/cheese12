@@ -1339,12 +1339,12 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock, eve
     // export is its recovery copy. Ticking it is in the audit log.
     const live = customapp.liveEvents();
     const withEvents = !live.length || query.includeEvents === '1';
-    audit.record(withEvents && live.length ? 'data.export-events' : 'data.export', { label: 'Full backup', note: `All company data, including pay, government IDs and bank accounts${live.length ? (withEvents ? '; including the guest lists of live events (CUSTOM APP)' : '; live events left out (CUSTOM APP)') : ''}` });
+    audit.record(withEvents && live.length ? 'data.export-events' : 'data.export', { label: 'Full backup', note: `All company data, including pay, government IDs and bank accounts${live.length ? (withEvents ? '; including the guest lists of live events (Corp Comm YEP tool)' : '; live events left out (Corp Comm YEP tool)') : ''}` });
     // When the last backup was downloaded, and by whom (Admin panel → Dashboard).
     db.data.adminState = { lastBackupAt: new Date().toISOString(), lastBackupBy: user.name };
     db.save();
     if (withEvents) return db.data;
-    return { ...db.data, ...Object.fromEntries(CA_COLLECTIONS.map((k) => [k, []])), eventsOmitted: { at: new Date().toISOString(), events: live.map((e) => e.name), note: 'Live event data is not in this backup. Each event has its own export (CUSTOM APP → Event control).' } };
+    return { ...db.data, ...Object.fromEntries(CA_COLLECTIONS.map((k) => [k, []])), eventsOmitted: { at: new Date().toISOString(), events: live.map((e) => e.name), note: 'Live event data is not in this backup. Each event has its own export (Corp Comm YEP tool → Event control).' } };
   });
   // A restore replaces everything, the accounts included: the administrator's password is asked
   // again, and the accounts in the file are checked before anything is replaced.

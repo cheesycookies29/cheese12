@@ -16,7 +16,7 @@ export const AUDIT_AREAS = {
   projects: 'Projects',
   documents: 'Documents',
   forms: 'Document circulation',
-  customapp: 'CUSTOM APP',
+  customapp: 'Corp Comm YEP tool',
   feedback: 'Feedback',
   monitor: 'Security monitor',
   system: 'System',
@@ -160,7 +160,7 @@ export const AUDIT_ACTIONS = {
   'customapp.refer': 'Sent event guests to the Super Administrator to seat together',
   'customapp.notify': 'Sent an event guest\'s seat email again',
   'customapp.reconcile': 'Entered paper seating for an event',
-  'customapp.change': 'Changed CUSTOM APP',
+  'customapp.change': 'Changed Corp Comm YEP tool',
   'data.export-events': 'Downloaded a full backup with event guest lists',
 };
 

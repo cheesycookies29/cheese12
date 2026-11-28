@@ -11,6 +11,9 @@ import path from 'node:path';
 import { checkInvariants } from '../../../shared/customapp/invariants.js';
 import { eventsOf, stateOf } from './model.js';
 import { eventExport } from './io.js';
+import { moduleName } from '../../../shared/modules.js';
+// The module's name as people see it (shared/modules.js), never written into the engine.
+const APP_NAME = moduleName('customapp');
 
 export const SAFETY = Object.freeze({ copyEveryMs: 5 * 60000, keep: 24, checkEveryMs: 60000 });
 
@@ -40,7 +43,7 @@ export function createSafety(db, { now = () => Date.now(), audit = null, dir = n
         copies.set(ev.id, rec);
         out.push({ eventId: ev.id, ...rec });
       } catch (err) {
-        console.error(`CUSTOM APP: the 5-minute copy of ${ev.name} was not written:`, err.message);
+        console.error(`${APP_NAME}: the 5-minute copy of ${ev.name} was not written:`, err.message);
         copies.set(ev.id, { ...(copies.get(ev.id) || {}), error: err.message, errorAt: new Date(now()).toISOString() });
       }
     }

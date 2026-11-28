@@ -31,6 +31,9 @@ import { pollFor } from '../../../shared/customapp/statuses.js';
 import { isConfirmed } from '../../../shared/customapp/seating.js';
 import { commit } from './commit.js';
 import { eventsOf, guestsOf, tablesOf, canonSurname, cleanText, maskEmail } from './model.js';
+import { moduleName } from '../../../shared/modules.js';
+// The module's name as people see it (shared/modules.js), never written into the engine.
+const APP_NAME = moduleName('customapp');
 
 export const PUBLIC_LIMITS = Object.freeze({
   capValues: 8, capWindowMs: 15 * 60000, alarmFailures: 30, alarmWindowMs: 5 * 60000,
@@ -298,7 +301,7 @@ export function registerPublicRoutes(route, db, { ctx, gate, limits = { hit() {}
     try {
       out = verifyNow(req);
     } catch (err) {
-      console.error('CUSTOM APP guest page:', err.message);
+      console.error(`${APP_NAME} guest page:`, err.message);
       out = gate.refer(byCode(req.params.code), 'not_saved', gate.typedOf(req.body));
     }
     const wait = padMs ? padMs + Math.floor(Math.random() * padMs * 0.15) - (clock() - started) : 0;

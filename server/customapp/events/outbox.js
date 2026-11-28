@@ -30,6 +30,9 @@ import { isConfirmed, isReserved } from '../../../shared/customapp/seating.js';
 import { coll, inviteHashOf, inviteLink } from './model.js';
 import { seatMessage, rsvpMessage, textWithLink, messageHtml, withoutLink } from './message.js';
 import { qrPng } from '../qr.js';
+import { moduleName } from '../../../shared/modules.js';
+// The module's name as people see it (shared/modules.js), never written into the engine.
+const APP_NAME = moduleName('customapp');
 
 // Where sealed tokens are opened: CORE's secrets (server/secrets.js) in the app; tests without them
 // get one that keeps the tokens in memory only.
@@ -75,7 +78,7 @@ export function createOutbox(db, { transport, send = smtpSend, now = () => Date.
         db.save();
         stats.saves++;
       } catch (err) {
-        console.error('CUSTOM APP outbox: status not saved:', err.message);
+        console.error(`${APP_NAME} outbox: status not saved:`, err.message);
       }
     }, saveEveryMs);
     saveTimer.unref?.();
@@ -189,7 +192,7 @@ export function createOutbox(db, { transport, send = smtpSend, now = () => Date.
   async function sendOne(m) {
     const ev = eventOf(m.eventId);
     const from = String(ev?.settings?.emailFrom || '').toLowerCase();
-    if (!transport?.canSendEvents()) return fail(m, 'Outgoing email is not set up for events (IT Service Desk → Settings → Sending email → Use for CUSTOM APP event emails).');
+    if (!transport?.canSendEvents()) return fail(m, `Outgoing email is not set up for events (IT Service Desk → Settings → Sending email → Use for ${APP_NAME} event emails).`);
     if (!EMAIL_RE.test(from)) return fail(m, 'The event has no From address (Setup → Event → Email from).');
     if (from === transport.mailboxAddress()) return fail(m, 'The event\'s From address is the IT Service Desk mailbox; use the event\'s own address.');
     const attempts = (m.attempts || 0) + 1;
@@ -253,7 +256,7 @@ export function createOutbox(db, { transport, send = smtpSend, now = () => Date.
     return run;
   }
   function kick() {
-    setImmediate(() => drain().catch((err) => console.error('CUSTOM APP outbox:', err.message)));
+    setImmediate(() => drain().catch((err) => console.error(`${APP_NAME} outbox:`, err.message)));
   }
   // A message left in "sending" (the process stopped mid-send) for longer than staleSendingMs.
   function requeueStale() {

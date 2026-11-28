@@ -19,6 +19,9 @@ import { classOK, takenSeats, tableCounts, optionsFor, seatNoRequired, seatStatu
 import { cleanRoom, roomTables } from '../../../shared/customapp/room.js';
 import { toUtc } from '../../../shared/customapp/time.js';
 import { importIssues } from './io.js';
+import { moduleName } from '../../../shared/modules.js';
+// The module's name as people see it (shared/modules.js), never written into the engine.
+const APP_NAME = moduleName('customapp');
 
 // ----- Small helpers -----
 const guestOf = (state, id) => state.guests.find((g) => g.id === String(id || '')) || null;
@@ -746,11 +749,11 @@ const COMMANDS = {
   // the route): the old holder loses every power in the same commit; what they owned goes to the
   // Super Administrator's queue. Always exactly one (I5).
   setSuperAdmin(state, cmd, actor) {
-    if (!actor.canManage) throw refuse('needs_super_admin', state, [], [], 'Only an administrator with CUSTOM APP management can hand over the Super Administrator.');
+    if (!actor.canManage) throw refuse('needs_super_admin', state, [], [], `Only an administrator with ${APP_NAME} management can hand over the Super Administrator.`);
     const reason = cleanText(cmd.reason, 300);
     if (!reason) throw bad('Say why the Super Administrator changes.');
     const u = (state.users || []).find((x) => x.id === String(cmd.userId || ''));
-    if (!u || !u.active || !u.canUse) throw bad('Choose an active account that can use CUSTOM APP.');
+    if (!u || !u.active || !u.canUse) throw bad(`Choose an active account that can use ${APP_NAME}.`);
     const ev = state.event;
     if (u.id === ev.superAdminUserId) throw bad('That account is already the Super Administrator.');
     const old = ev.superAdminUserId;
@@ -1061,7 +1064,7 @@ function cleanStaff(state, input) {
   for (const s of input) {
     const id = String(s?.userId || '');
     const u = users.get(id);
-    if (!u || !u.canUse) throw bad('Every staff member must be an account that can use CUSTOM APP.');
+    if (!u || !u.canUse) throw bad(`Every staff member must be an account that can use ${APP_NAME}.`);
     if (id === state.event.superAdminUserId || seen.has(id)) continue;
     seen.add(id);
     out.push({ userId: id, role: 'staff', active: s.active !== false && u.active });

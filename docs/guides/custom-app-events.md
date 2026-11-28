@@ -1,6 +1,6 @@
 ---
 id: custom-app-events
-title: Running an event in CUSTOM APP
+title: Running an event in Corp Comm YEP tool
 summary: For event staff, the event's Super Administrator and administrators: personal invitations by email with a QR code, the guest's Yes or No with the seat reserved at once on Yes, check-in at the door by the same link, My queue, the guest page guests check in on, the room plan, finding and checking in a guest (also by the code the guest page gives), seating at a table and chair with recommended tables, seating a group together, walk-ins and substitutes, seat emails, Event control (the exceptions inbox, health, staff and their queues, switches, the reception QR, exports, the printed plan and the offline pack, reconciling paper seating, handing over the Super Administrator), Setup (the room, tables, staff, the guest list import and its check), and what to do on the night if something fails.
 roles: eventstaff, admin
 apps: customapp
@@ -9,13 +9,13 @@ order: 45
 
 ## Before you start
 
-**CUSTOM APP** is CORE's module for apps made for a client. Its first app, **Events**, runs the registration desk of an event: the guest list, check-in, and seating by table and chair, within each table's limit of 10.
+**Corp Comm YEP tool** is CORE's module for apps made for a client. Its first app, **Events**, runs the registration desk of an event: the guest list, check-in, and seating by table and chair, within each table's limit of 10.
 
-- **Event staff** sign in with a CORE account of the type *Event staff*. It opens CUSTOM APP and nothing else, on **My queue**. Your administrator makes the account; the event's Super Administrator puts you on the event's staff and gives you your tables and guests.
+- **Event staff** sign in with a CORE account of the type *Event staff*. It opens Corp Comm YEP tool and nothing else, on **My queue**. Your administrator makes the account; the event's Super Administrator puts you on the event's staff and gives you your tables and guests.
 - **Guests** get a personal **invitation** by email, with their own link and QR code. They answer **Yes** or **No** on it; on Yes their seat is reserved at once and emailed to them. On the night the same link (or its QR code) checks them in at the door. Guests can also check themselves in on their phone: they scan the reception QR code, which opens the event's **guest page** (*/event/…*), type their surname and the last 4 digits of their mobile (or their full email), and see their table as soon as it is chosen. Nobody needs an account for any of it.
 - Each event has **exactly one Super Administrator**. They can do everything in that event: seat anyone anywhere, release reservations, set up the event and change its switches. Staff check in anyone, and seat only the guests and tables given to them.
-- **Administrators** create events (CUSTOM APP → **Events** → **New event**) and can hand the Super Administrator over to someone else, with their password and a reason. That is their only power inside an event: being a CORE administrator does not let you seat guests.
-- CUSTOM APP starts **off** for the company. An administrator turns it on under **Admin panel → Modules**.
+- **Administrators** create events (Corp Comm YEP tool → **Events** → **New event**) and can hand the Super Administrator over to someone else, with their password and a reason. That is their only power inside an event: being a CORE administrator does not let you seat guests.
+- Corp Comm YEP tool starts **off** for the company. An administrator turns it on under **Admin panel → Modules**.
 
 The screens are made for a phone first: everything works at 390 pixels wide, buttons are large, and every count and badge says in words what its colour shows.
 
@@ -23,7 +23,7 @@ To try it with the demo data (**Admin panel → Demo data**), sign in as `eventl
 
 ## Walkthrough
 
-1. Sign in as `event.demo` on a phone. CUSTOM APP opens on **My queue**: the bar at the top names the event and you and says how old the screen is (*Last updated 2 s ago*). Below it, **Waiting for table** lists the guests given to you who have checked in and have no seat yet, oldest first, each with their company, industry, class and how long they have waited (amber after 4 minutes, red after 8). Then **Checked in and seated**, and **Find guest**. The screen updates by itself every few seconds.
+1. Sign in as `event.demo` on a phone. Corp Comm YEP tool opens on **My queue**: the bar at the top names the event and you and says how old the screen is (*Last updated 2 s ago*). Below it, **Waiting for table** lists the guests given to you who have checked in and have no seat yet, oldest first, each with their company, industry, class and how long they have waited (amber after 4 minutes, red after 8). Then **Checked in and seated**, and **Find guest**. The screen updates by itself every few seconds.
 
    ![My queue on a phone](custom-app-events-queue.jpg)
 
@@ -129,7 +129,7 @@ Each guest gets their own invitation by email: a button and the address of their
 
 Before the first invitation:
 
-1. Outgoing email is set up for CORE under **IT Service Desk → Settings → Sending email**, with **Use for CUSTOM APP event emails** ticked (with Amazon SES: see [Set up email with Amazon SES](admin#set-up-email-with-amazon-ses)). It is separate from the helpdesk's **Send replies by email**.
+1. Outgoing email is set up for CORE under **IT Service Desk → Settings → Sending email**, with **Use for Corp Comm YEP tool event emails** ticked (with Amazon SES: see [Set up email with Amazon SES](admin#set-up-email-with-amazon-ses)). It is separate from the helpdesk's **Send replies by email**.
 2. **Setup → Event**: **Email from** is the event's own address on the domain set up for email (for example *events@ltdc-core.com*), never the IT Service Desk's mailbox, and **Status** is *Live* (the links answer only while the event is live).
 3. **Event control → Invitations → Invitation settings…**: the **Subject**, the **Opening text**, the **Time**, **Venue** and **Dress code** shown with the date, **Reply by** (Manila time, before the event), the **Closing note** (optional), and **Seat on Yes** (on unless you turn it off). Leave **Public address for the links** empty to use the address you are using CORE on (*https://ltdc-core.com*); the links then point there.
 

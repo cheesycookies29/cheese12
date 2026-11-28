@@ -1370,7 +1370,7 @@ export async function eventSetupView(el, params, query) {
       <form id="ca-ind"><label class="field"><span class="sr-only">Industries</span><textarea name="list" rows="6">${(ev.industries || []).map((i) => `${i.name}${i.related.length ? `: ${i.related.map((r) => ev.industries.find((x) => x.id === r)?.name).filter(Boolean).join(', ')}` : ''}`).join('\n')}</textarea></label>
         <div class="actions"><button type="submit" class="btn">Save industries</button></div></form></section>
     <section class="card"><h2>${icon('users')} Staff</h2>
-      <p class="muted small">Accounts that can use CUSTOM APP (Event staff, administrators). Staff check in anyone; they seat only the guests and tables given to them.</p>
+      <p class="muted small">Accounts that can use Corp Comm YEP tool (Event staff, administrators). Staff check in anyone; they seat only the guests and tables given to them.</p>
       <form id="ca-staff"><ul class="ca-checks">${people.filter((p) => p.id !== ev.superAdmin.id).map((p) => html`<li><label class="field check"><input type="checkbox" name="staff" value="${p.id}" ${ev.staff.some((x) => x.userId === p.id && x.active) ? 'checked' : ''} /><span>${p.name} <small class="muted">${p.username} · ${p.type}</small></span></label></li>`)}</ul>
         <div class="actions"><button type="submit" class="btn">Save staff</button></div></form></section>`);
   wireSwitcher(el, '/customapp/setup');

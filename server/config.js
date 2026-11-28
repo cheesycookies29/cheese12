@@ -385,7 +385,7 @@ export function registerAdminRoutes(route, db, { invoke, audit, sessionCount, op
       const open = openEvents();
       const blocked = open.filter((ev) => !(body.confirmEventOff === true && ev.superAdminUserId === user?.id));
       if (blocked.length) {
-        throw new HttpError(409, `${blocked.map((e) => e.name).join(', ')} ${blocked.length === 1 ? 'is' : 'are'} open now. CUSTOM APP can be switched off only by ${blocked.length === 1 ? 'its' : 'their'} Super Administrator, who confirms it.`, { code: 'event_window_open' });
+        throw new HttpError(409, `${blocked.map((e) => e.name).join(', ')} ${blocked.length === 1 ? 'is' : 'are'} open now. Corp Comm YEP tool can be switched off only by ${blocked.length === 1 ? 'its' : 'their'} Super Administrator, who confirms it.`, { code: 'event_window_open' });
       }
     }
     const next = { ...before, ...input };

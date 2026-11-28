@@ -19,6 +19,9 @@ import { checkInvariants } from '../../../shared/customapp/invariants.js';
 import { userCan } from '../../../shared/roles.js';
 import { plan, freshFor } from './engine.js';
 import { mustEvent, stateOf, roleOf, refusal, bad, maskEmail, maskMobile } from './model.js';
+import { moduleName } from '../../../shared/modules.js';
+// The module's name as people see it (shared/modules.js), never written into the engine.
+const APP_NAME = moduleName('customapp');
 
 // Commands allowed while the event is read only: turning the switch back off, handing over the
 // Super Administrator (break-glass), and the Super Administrator's paper reconciliation.
@@ -130,7 +133,7 @@ export function commit(ctx, eventId, user, cmd) {
   const p = plan(state, cmd, actor, now);
   if (p.noop) return { ...(p.result || {}), seq: ev.seq || 0, unchanged: true };
   // Change records are of a closed set of kinds (a later push transport reuses them as they are).
-  if (!CHANGE_TYPES.includes(p.type)) throw new Error(`CUSTOM APP: "${p.type}" is not in CHANGE_TYPES (shared/customapp/statuses.js).`);
+  if (!CHANGE_TYPES.includes(p.type)) throw new Error(`${APP_NAME}: "${p.type}" is not in CHANGE_TYPES (shared/customapp/statuses.js).`);
 
   // The revisions the screen saw: a record changed since is refused, with how it is now.
   const expect = cmd.expect && typeof cmd.expect === 'object' && !Array.isArray(cmd.expect) ? cmd.expect : {};
@@ -149,7 +152,7 @@ export function commit(ctx, eventId, user, cmd) {
   const before = new Set(checkInvariants(state).map(key));
   const broken = checkInvariants(post, { write: p.write || null }).filter((v) => !before.has(key(v)));
   if (broken.length) {
-    console.error('CUSTOM APP: a change would break', broken);
+    console.error(`${APP_NAME}: a change would break`, broken);
     throw new Error(`Event invariant ${broken[0].rule}: ${broken[0].detail}`);
   }
 
@@ -197,7 +200,7 @@ export function commit(ctx, eventId, user, cmd) {
     db.save();
   } catch (err) {
     Object.assign(d, saved);
-    console.error('CUSTOM APP: the change was not saved:', err.message);
+    console.error(`${APP_NAME}: the change was not saved:`, err.message);
     throw refusal('not_saved', { seq: ev.seq || 0 });
   }
   if (ctx.saveMs) {
@@ -209,7 +212,7 @@ export function commit(ctx, eventId, user, cmd) {
     try {
       ctx.audit.record(`customapp.${p.audit.action}`, { entity: 'caEvent', entityId: p.audit.entityId || ev.id, label: p.audit.label || ev.name, note: p.audit.note || '', ...(p.audit.actor ? { actor: p.audit.actor } : {}) });
     } catch (err) {
-      console.error('CUSTOM APP: audit entry not written:', err.message);
+      console.error(`${APP_NAME}: audit entry not written:`, err.message);
     }
   }
   // After the save: the seat emails (queued here, sent later by the outbox, outside commit()). A
@@ -218,7 +221,7 @@ export function commit(ctx, eventId, user, cmd) {
     try {
       ctx.afterCommit(evNext, p, seatsBefore);
     } catch (err) {
-      console.error('CUSTOM APP: after the change:', err.message);
+      console.error(`${APP_NAME}: after the change:`, err.message);
     }
   }
   return { ...(p.result || {}), seq, revs, guestIds: p.guestIds, tableIds: p.tableIds };
@@ -229,7 +232,7 @@ export function commit(ctx, eventId, user, cmd) {
 // was if the save fails, one caChanges entry (seq 1), one audit entry.
 export function createEvent(ctx, user, input = {}) {
   const { db } = ctx;
-  if (!input.demo && !userCan(user, 'customapp.manage')) throw refusal('needs_super_admin', undefined, 'Creating an event needs CUSTOM APP management.');
+  if (!input.demo && !userCan(user, 'customapp.manage')) throw refusal('needs_super_admin', undefined, `Creating an event needs ${APP_NAME} management.`);
   const name = cleanText(input.name, 120);
   if (!name) throw bad('Give the event a name.');
   if (input.date && !/^\d{4}-\d{2}-\d{2}$/.test(String(input.date))) throw bad('Write the date as YYYY-MM-DD.');
@@ -243,7 +246,7 @@ export function createEvent(ctx, user, input = {}) {
   }
   const superAdminUserId = input.superAdminUserId ? String(input.superAdminUserId) : user.id;
   const sa = (db.data.users || []).find((u) => u.id === superAdminUserId && u.active !== false);
-  if (!sa || !userCan(sa, 'customapp.use')) throw bad('The Super Administrator must be an active account that can use CUSTOM APP.');
+  if (!sa || !userCan(sa, 'customapp.use')) throw bad(`The Super Administrator must be an active account that can use ${APP_NAME}.`);
   const now = ctx.now();
   const seatNumbers = ['all', 'preferred', 'none'].includes(input.settings?.seatNumbers) ? input.settings.seatNumbers : 'all';
   const refPrefix = cleanText(input.refPrefix, 6).toUpperCase().replace(/[^A-Z0-9]/g, '') || name.split(/\s+/).map((w) => w[0]).join('').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'G';

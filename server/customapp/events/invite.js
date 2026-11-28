@@ -36,6 +36,9 @@ import { mutation } from './routes.js';
 import { qrPng, qrSvg } from '../qr.js';
 import { composeMessage, newMessageId, newContentId } from '../../mail/compose.js';
 import { sendMail as smtpSend } from '../../mail/smtp.js';
+import { moduleName } from '../../../shared/modules.js';
+// The module's name as people see it (shared/modules.js), never written into the engine.
+const APP_NAME = moduleName('customapp');
 
 const NO_STORE = { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow' };
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -116,7 +119,7 @@ export function registerInviteRoutes(route, db, { ctx, gate, limits = { hit() {}
     try {
       out = fn(req);
     } catch (err) {
-      console.error('CUSTOM APP invitation page:', err.message);
+      console.error(`${APP_NAME} invitation page:`, err.message);
       out = gate.refer(byCode(req.params.code), 'not_saved');
     }
     const wait = padMs ? padMs + Math.floor(Math.random() * padMs * 0.15) - (clock() - started) : 0;
@@ -196,7 +199,7 @@ export function registerInviteRoutes(route, db, { ctx, gate, limits = { hit() {}
     const domain = from.split('@')[1] || '';
     if (from && host && domain && !(host === domain || host.endsWith(`.${domain}`) || domain.endsWith(`.${host}`))) add('other_domain', 'warn', `The From address (${from}) is not on the site's domain (${host}). Send from an address on the domain you verified for email, or mail may go to spam.`);
     if (!host || /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)/.test(host) || /^http:/.test(linkBase)) add('local_link', 'warn', `The links would point to ${linkBase || 'nowhere'}, which guests cannot open. Open CORE at its public address (https://…) to send, or set the public address below.`);
-    if (!outbox?.transport?.canSendEvents()) add('no_transport', ev.flags?.emailPaused ? 'warn' : 'block', 'Outgoing email is not set up for events (IT Service Desk → Settings → Sending email → Use for CUSTOM APP event emails). Invitations can be queued while email is paused, and go when it is set up and turned on.');
+    if (!outbox?.transport?.canSendEvents()) add('no_transport', ev.flags?.emailPaused ? 'warn' : 'block', `Outgoing email is not set up for events (IT Service Desk → Settings → Sending email → Use for ${APP_NAME} event emails). Invitations can be queued while email is paused, and go when it is set up and turned on.`);
     if (ev.flags?.emailPaused) add('paused', 'info', 'Email is paused (Event control → Switches): invitations wait in the outbox until you turn it on.');
     if (!seatsOnYes(ev)) add('no_auto_seat', 'info', 'Seat on Yes is off: guests who say Yes wait in the exceptions inbox for you to reserve their seat.');
     return out;
@@ -271,7 +274,7 @@ export function registerInviteRoutes(route, db, { ctx, gate, limits = { hit() {}
     const from = String(ev.settings?.emailFrom || '').toLowerCase();
     if (!EMAIL_RE.test(from)) throw bad('Set the event\'s From address first (Setup → Event → Email from).');
     if (from === helpdeskAddress()) throw bad('The From address is the IT Service Desk mailbox. Use the event\'s own address.');
-    if (!outbox?.transport?.canSendEvents()) throw bad('Outgoing email is not set up for events (IT Service Desk → Settings → Sending email → Use for CUSTOM APP event emails).');
+    if (!outbox?.transport?.canSendEvents()) throw bad(`Outgoing email is not set up for events (IT Service Desk → Settings → Sending email → Use for ${APP_NAME} event emails).`);
     limits.hit('sensitive', user.id, 'Too many test emails. Wait a minute.');
     const msg = invitationMessage(ev, { id: 'test', name: { first: user.name, last: '', display: user.name }, email: to });
     const link = inviteLink(linkBaseOf(ev, origin), ev.code, 'TEST-LINK-FROM-EVENT-CONTROL-does-not-answer');

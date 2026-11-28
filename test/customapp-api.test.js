@@ -48,7 +48,7 @@ describe('US-005: CUSTOM APP module shell and the Event staff account type', asy
     for (const [m, u] of [['GET', '/api/public/event/some-code'], ['POST', '/api/public/event/some-code/verify'], ['GET', '/api/public/event/some-code/status']]) {
       const r = await c.client()(m, u, { surname: 'x', last4: '1234' });
       assert.equal(r.status, 403, `${m} ${u}`);
-      assert.match(r.error, /CUSTOM APP is turned off/);
+      assert.match(r.error, /Corp Comm YEP tool is turned off/);
     }
     assert.ok((await c.admin('GET', '/api/customapp/apps')).apps, 'administrators still open a module that is off');
     await c.admin('PUT', '/api/admin/modules', { modules: { customapp: true } });

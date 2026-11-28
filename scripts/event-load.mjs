@@ -420,7 +420,7 @@ export async function main(argv = process.argv.slice(2), { log = (m) => console.
     return 2;
   }
   if ((await sa.call('GET', '/api/customapp/apps')).status !== 200) {
-    log('CUSTOM APP is off, or this account cannot use it: turn it on in Admin panel → Modules, as an administrator.');
+    log('Corp Comm YEP tool is off, or this account cannot use it: turn it on in Admin panel → Modules, as an administrator.');
     return 2;
   }
   const perfStart = await sa.call('GET', '/api/admin/perf');

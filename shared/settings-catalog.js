@@ -60,7 +60,7 @@ export const SETTINGS = [
   ['modules', 'helpdesk', 'IT Service Desk', 'Tickets, email, the public form and My tickets.', 'bool'],
   ['modules', 'crm', 'Sales & CRM', 'Leads, accounts, pipeline, bids and contracts.', 'bool'],
   ['modules', 'projects', 'Project Management', 'Projects, My work, timesheets and the digest.', 'bool'],
-  ['modules', 'customapp', 'CUSTOM APP', 'Events: guest lists, check-in and seating (off until turned on).', 'bool'],
+  ['modules', 'customapp', 'Corp Comm YEP tool', 'Events: guest lists, check-in and seating (off until turned on).', 'bool'],
   ['modules', 'pdf', 'PDF Studio (tool)', 'Documents and pictures to PDF, for everyone.', 'bool'],
   // Coming soon: shown or hidden (0.63).
   ...ROADMAP.map((x) => ['modules', x.id, `${x.name} (coming soon)`, `Shown greyed out in ${x.where.charAt(0).toLowerCase()}${x.where.slice(1)}, or hidden from everyone.`, 'shown']),
