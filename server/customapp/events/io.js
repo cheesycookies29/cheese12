@@ -263,7 +263,7 @@ export function exportEvent({ event, tables, guests, changes = [], outbox = [] }
     event: only(event, EVENT_EXPORT),
     tables: [...tables].sort((a, b) => a.number - b.number).map((t) => only(t, ['id', 'number', 'classification', 'capacity', 'ownerUserId', 'tags', 'active', 'row', 'col', 'rev'])),
     // The invitation's state and the guest's answer (0.74, optional fields), never the link's hash.
-    guests: [...guests].sort((a, b) => String(a.ref).localeCompare(String(b.ref))).map((g) => ({ ...only(g, GUEST_EXPORT), ...(g.rsvpReply ? { rsvpReply: g.rsvpReply } : {}), ...(g.invite ? { invite: (({ hash, ...rest }) => rest)(g.invite) } : {}) })),
+    guests: [...guests].sort((a, b) => String(a.ref).localeCompare(String(b.ref))).map((g) => ({ ...only(g, GUEST_EXPORT), ...(g.rsvpReply ? { rsvpReply: g.rsvpReply } : {}), ...(g.invite ? { invite: (({ hash, earlier, ...rest }) => rest)(g.invite) } : {}) })),
     changes: changes.map((c) => ({ ...c })),
     // A sealed invitation link waiting to be emailed never leaves the server (0.74).
     outbox: outbox.map(({ tokenSealed, ...m }) => ({ ...m })),

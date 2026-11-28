@@ -86,6 +86,8 @@ const P = {
   mapPin: '<path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  camera: '<path d="M3 8a2 2 0 012-2h2.5l1.5-2h6l1.5 2H19a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><circle cx="12" cy="13" r="3.5"/>',
+  flashlight: '<path d="M8 3h8v4l-2 3v11h-4V10L8 7z"/><path d="M8 7h8M12 13v2"/>',
   play: '<circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z"/>',
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   sparkle: '<path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>',

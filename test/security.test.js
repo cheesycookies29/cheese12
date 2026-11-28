@@ -158,6 +158,17 @@ test('browser checks: other sites cannot make changes; pages get a script policy
   assert.equal(baseHeaders()['X-Frame-Options'], 'DENY');
   assert.equal(baseHeaders()['Strict-Transport-Security'], undefined);
   assert.match(baseHeaders({ https: true })['Strict-Transport-Security'], /max-age=/);
+  // Browser features: the camera for Scan QR (0.75) and location for clock-in, both for CORE's own
+  // pages only (self, never another site's frame); the microphone and the rest stay off.
+  const pp = Object.fromEntries(baseHeaders()['Permissions-Policy'].split(/,\s*/).map((x) => x.split('=')));
+  assert.equal(pp.camera, '(self)');
+  assert.equal(pp.geolocation, '(self)');
+  assert.equal(pp.microphone, '()');
+  assert.equal(pp.payment, '()');
+  assert.equal(pp.usb, '()');
+  // The worker that reads QR codes off the camera is a script of CORE's own: 'self' covers it.
+  assert.match(csp, /default-src 'self'/);
+  assert.doesNotMatch(csp, /worker-src/);
 });
 
 test('rate limits in the running app: sign-in bursts and failures from one address are refused', async () => {

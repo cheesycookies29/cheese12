@@ -15,6 +15,8 @@
 //    short poll, with a bar that says how old it is. The Super Administrator's queue is everyone with
 //    no owner, released preferred guests who arrived, and guests flagged for a look.
 //  - roomPlanView (/customapp/room): the room plan (customapp-room.js), also on Event control.
+// 0.75: Scan QR on Find guest and My queue (customapp-scan.js): the camera reads the QR code in a
+//    guest's invitation and their sheet opens; with Keep scanning, the scanner opens again after Check in.
 // Every change is one command to the server (server/customapp/events), which decides: nothing is
 // shown as done before it answers, and a refusal redraws the sheet from the state in its reply.
 import { api } from '../api.js';
@@ -27,6 +29,7 @@ import { livePoll } from './customapp-live.js';
 import { mountRoomPlan } from './customapp-room.js';
 import qrcode from '../vendor/qrcode.js';
 import { richEditor, wireRichEditor } from '../richeditor.js';
+import { openScanner, scanButton } from './customapp-scan.js';
 
 const STORE = 'core-ca-event';
 const opId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -130,7 +133,7 @@ export async function myQueueView(el, params, query) {
     <section class="card ca-q-sec" aria-labelledby="ca-q-w"><h2 id="ca-q-w">Waiting for table <span class="ca-n" data-nw></span></h2><p class="muted small ca-q-tip">A group arriving together: tick them, then <strong>Seat together</strong>.</p><div data-waiting><p class="muted">Loading…</p></div><div class="ca-groupbar" data-groupbar hidden role="region" aria-label="Group"></div></section>
     <section class="card ca-q-sec" aria-labelledby="ca-q-s"><h2 id="ca-q-s">Checked in and seated <span class="ca-n" data-ns></span></h2><div data-seated></div></section>
     <section class="card ca-q-sec" aria-labelledby="ca-q-f"><h2 id="ca-q-f">Find guest</h2>
-      <div class="ca-search"><input type="search" data-find placeholder="Name, company, ref or a code (R-1234)" aria-label="Find a guest by name, company, ref or referral code" autocomplete="off" enterkeyhint="search" /></div>
+      <div class="ca-search ca-search-scan"><input type="search" data-find placeholder="Name, company, ref or a code (R-1234)" aria-label="Find a guest by name, company, ref or referral code" autocomplete="off" enterkeyhint="search" />${scanButton({ fab: true })}</div>
       <div data-found aria-live="polite"></div>
       <p class="ca-walkin-row"><button type="button" class="btn" data-walkin>${icon('userPlus', 16)} Add walk-in</button> <small class="muted">Not on the list? The Super Administrator decides.</small></p></section>`);
   wireSwitcher(el, '/customapp/queue');
@@ -191,6 +194,7 @@ export async function myQueueView(el, params, query) {
     if ([...greyed.values()].some((x) => x.until < Date.now())) draw();
   }, 5000);
   wireFind(el, id, () => poll.reset());
+  wireScan(el, id, () => poll.reset(), () => el.querySelector('[data-find]'));
   return () => {
     poll.stop();
     clearInterval(ticker);
@@ -279,6 +283,24 @@ function wireFound(box, eventId, r, onChange) {
   }));
 }
 
+// Scan QR (0.75): the buttons on Find guest and My queue open the scanner; a guest found opens their
+// sheet, with what the scan said (already checked in, a substitute) on top. With Keep scanning on,
+// the scanner opens again after Check in; Scan next on the sheet opens it by hand.
+function wireScan(el, eventId, onChange, searchBox) {
+  const scan = () => openScanner(eventId, {
+    onFind: () => searchBox()?.focus(),
+    onFound: (r, keep) => openGuest(eventId, r.guestId, onChange, {
+      notice: r.notice?.text || '',
+      onScanNext: scan,
+      onCheckedIn: keep ? (closeSheet) => {
+        closeSheet();
+        scan();
+      } : null,
+    }),
+  });
+  el.querySelectorAll('[data-scan]').forEach((b) => b.addEventListener('click', scan));
+}
+
 // ----- Find guest, and the guest sheet -----
 export async function findGuestView(el, params, query) {
   const { events, canCreate, id } = await pickEvent(query);
@@ -290,7 +312,7 @@ export async function findGuestView(el, params, query) {
   let mine = false;
   mount(el, html`${head(html`${icon('search', 22)} Find guest`, ev, events)}
     <div class="stats small ca-strip" id="ca-strip"></div>
-    <div class="ca-search"><input type="search" id="ca-q" placeholder="Name, company, ref or code (R-1234)" aria-label="Find a guest by name, company, ref or referral code" autocomplete="off" enterkeyhint="search" /></div>
+    <div class="ca-search ca-search-scan"><input type="search" id="ca-q" placeholder="Name, company, ref or code (R-1234)" aria-label="Find a guest by name, company, ref or referral code" autocomplete="off" enterkeyhint="search" />${scanButton({ fab: true })}</div>
     <div class="chips ca-chips" role="group" aria-label="Show">
       ${[['', 'Everyone'], ['waiting', 'Waiting for a table'], ['expected', 'Not arrived'], ['seated', 'Seated'], ['reserved', 'Reserved']].map(([v, l]) => html`<button type="button" class="chip ${v === status ? 'on' : ''}" data-status="${v}" aria-pressed="${v === status}">${l}</button>`)}
       ${ev.role === 'staff' ? html`<button type="button" class="chip" data-mine aria-pressed="false">Mine only</button>` : ''}
@@ -362,6 +384,10 @@ export async function findGuestView(el, params, query) {
     e.currentTarget.setAttribute('aria-pressed', String(mine));
     search();
   });
+  wireScan(el, id, async () => {
+    search();
+    strip((await api.get(`/api/customapp/events/${id}`)).counts);
+  }, () => el.querySelector('#ca-q'));
   await search();
   if (query.guest) openGuest(id, query.guest, search);
   return () => clearTimeout(timer);
@@ -369,11 +395,13 @@ export async function findGuestView(el, params, query) {
 
 // The guest sheet: who they are, Check in, then Seat (a table, then a chair: the first free chair is
 // already chosen, so it is two taps), or what can be done with the seat they have.
-export function openGuest(eventId, guestId, onChange = () => {}) {
+// opts (Scan QR, 0.75): { notice: what the scan said, onScanNext(): open the scanner again,
+// onCheckedIn(closeSheet): after Check in on this sheet (Keep scanning) }.
+export function openGuest(eventId, guestId, onChange = () => {}, opts = {}) {
   const { form, close } = modal({ title: 'Guest', body: html`<div class="ca-sheet-body" aria-live="polite"><p class="muted">Loading…</p></div>`, submitLabel: null, className: 'ca-sheet' });
   const box = form.querySelector('.ca-sheet-body');
   const titleEl = form.querySelector('.modal-title h2');
-  let notice = '';
+  let notice = opts.notice || '';
   let mode = null; // null, or 'transfer' while choosing a new seat
   let chosen = null; // { tableId, seatNo }
   const send = async (cmd, done) => {
@@ -385,6 +413,7 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
       if (done) toast(done);
       onChange();
       await load();
+      return true;
     } catch (err) {
       // Refused: the sheet is drawn again from the state as it is now, saying what happened.
       if (!err.code) throw err;
@@ -396,6 +425,7 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
       chosen = null;
       onChange();
       await load();
+      return false;
     }
   };
   async function load() {
@@ -439,6 +469,7 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
       ${d.substitute?.role === 'original' ? html`<p class="ca-notice">${icon('repeat', 16)} ${d.substitute.line}. ${g.displayName} is not coming.</p>` : ''}
       <section class="ca-step"><h3>Arrival</h3><p>${arrivalText(g)}</p>
         ${here ? (d.canSeat ? html`<button type="button" class="btn ghost small-btn" data-undo>Undo check-in</button>` : '') : d.approval && d.approval.state !== 'approved' ? '' : d.substitute?.role === 'original' ? '' : html`<button type="button" class="btn primary ca-big" data-checkin>${icon('check', 18)} Check in</button>`}
+        ${opts.onScanNext ? html`<p class="ca-scan-next"><button type="button" class="btn small-btn" data-scan-next>${icon('camera', 14)} Scan next</button></p>` : ''}
         ${d.canSubstitute ? html`<p><button type="button" class="btn small-btn" data-substitute>${icon('repeat', 14)} Record substitute</button> <small class="muted">Someone here instead of ${g.name?.first || g.displayName}</small></p>` : ''}</section>
       <section class="ca-step"><h3>Seat</h3>
         ${g.seat ? html`<p class="ca-seat-now"><strong>Table ${g.seat.number}${g.seat.seatNo ? `, seat ${g.seat.seatNo}` : ''}</strong> ${badge(g.seat.status === 'reserved' ? 'Reserved' : 'Seated', g.seat.status === 'reserved' ? 'blue' : 'green')}</p>
@@ -477,7 +508,14 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
       </section>` : ''}
       ${d.history.length ? html`<details class="ca-history"><summary>History (${d.history.length})</summary><ul>${d.history.map((h) => html`<li><span class="muted">${fmtManila(h.at)}</span> ${HISTORY[h.type] || h.type}, by ${h.by}${h.reason ? ` (${h.reason})` : ''}</li>`)}</ul></details>` : ''}`);
     const on = (sel, fn) => box.querySelectorAll(sel).forEach((b) => b.addEventListener('click', fn));
-    on('[data-checkin]', () => send({ type: 'checkIn', guestId }, `${g.displayName} checked in.`));
+    on('[data-checkin]', async () => {
+      const ok = await send({ type: 'checkIn', guestId }, `${g.displayName} checked in.${g.seat ? ` Table ${g.seat.number}${g.seat.seatNo ? `, seat ${g.seat.seatNo}` : ''}.` : ''}`);
+      if (ok && opts.onCheckedIn) opts.onCheckedIn(close);
+    });
+    on('[data-scan-next]', () => {
+      close();
+      opts.onScanNext();
+    });
     on('[data-resend]', () => send({ type: 'notify', guestId }, `Seat email to ${g.displayName} queued again.`));
     const evInfo = { industries: d.industries || [], staff: d.staff.map((x) => ({ ...x, active: true })) };
     on('[data-substitute]', () => recordSubstitute(eventId, evInfo, g, d.role === 'super', () => {

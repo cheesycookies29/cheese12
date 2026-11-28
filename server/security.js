@@ -71,13 +71,14 @@ export function checkPassword(password, { username = '', name = '' } = {}, setti
 
 // ----- HTTP security headers -----
 // Every response: no MIME sniffing, no framing (clickjacking), no referrer to other sites, only the
-// browser features CORE uses (location for clock-in), its own window. HSTS when served over HTTPS.
+// browser features CORE uses (location for clock-in, the camera for Scan QR at an event's door, both
+// for CORE's own pages only: never a frame of another site), its own window. HSTS over HTTPS.
 export function baseHeaders({ https = false } = {}) {
   return {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'same-origin',
-    'Permissions-Policy': 'geolocation=(self), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()',
+    'Permissions-Policy': 'geolocation=(self), camera=(self), microphone=(), payment=(), usb=(), interest-cohort=()',
     'Cross-Origin-Opener-Policy': 'same-origin',
     'Cross-Origin-Resource-Policy': 'same-origin',
     ...(https ? { 'Strict-Transport-Security': 'max-age=15552000' } : {}),

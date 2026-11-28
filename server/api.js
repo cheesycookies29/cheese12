@@ -587,6 +587,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock, eve
       'event-ip': { limit: 12000, windowMs: 60000 },
       'event-token': { limit: 90, windowMs: 60000 },
       'event-verify': { limit: 900, windowMs: 60000 },
+      // Scan QR (0.75): per staff member; one read is one request, so a door usher stays far below it.
+      'event-scan': { limit: 60, windowMs: 60000 },
       sensitive: { limit: 10, windowMs: 15 * 60000 },
       'public-write': { limit: 20, windowMs: 60 * 60000 },
       // Document links outside the company (0.67): opening, wrong passwords, files sent in.

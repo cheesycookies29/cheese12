@@ -11,6 +11,7 @@
 // the printed offline pack with paper reconciliation through commit() (the council design, A11, U4,
 // U7). 0.74: personal invitations by email (a link, a button and a QR code), the guest's Yes or No on
 // that link with the seat reserved at once on Yes, and the door check-in by the same link (invite.js).
+// 0.75: Scan QR, staff scanning a guest's invitation QR inside CORE to open their sheet (scan.js).
 import { createCommitContext } from './events/commit.js';
 import { registerEventRoutes } from './events/routes.js';
 import { registerPublicRoutes, createPublicGate } from './events/public.js';
@@ -18,6 +19,7 @@ import { createSafety } from './events/safety.js';
 import { eventsOf } from './events/model.js';
 import { createOutbox, memoryVault } from './events/outbox.js';
 import { registerInviteRoutes } from './events/invite.js';
+import { registerScanRoutes } from './events/scan.js';
 
 export const APPS = Object.freeze([
   Object.freeze({ id: 'events', name: 'Events', glyph: 'party', status: 'live', description: 'Guest lists, check-in at the desk and seating by table and chair, for one event at a time.' }),
@@ -65,6 +67,7 @@ export function registerCustomApp(route, db, { audit = null, requirePassword, li
   registerEventRoutes(route, db, { ctx, audit, requirePassword, limits, gate, safety, clock, outbox, count429 });
   registerPublicRoutes(route, db, { ctx, gate, limits, clock });
   registerInviteRoutes(route, db, { ctx, gate, limits, clock, vault: outbox.vault, outbox, audit, ...(outboxOpts.send ? { send: outboxOpts.send } : {}) });
+  registerScanRoutes(route, db, { limits });
   const openEvents = () => eventsOf(db).filter((ev) => windowOpen(ev, clock()));
   return {
     ctx, gate, safety, outbox, note429, count429,

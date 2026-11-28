@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Scan QR: scan a guest's invitation inside Corp Comm YEP tool (0.75)
+- **Find guest** and **My queue** have a **Scan QR** button (on a phone, a round button at the bottom right). It reads the QR code in a guest's invitation with the phone's camera, on paper or on the guest's phone, and opens their sheet to **Check in** (and seat them, if they are yours). The guest's personal page no longer opens on the staff phone. **Keep scanning** reopens the scanner after each check-in, for the door. An old, revoked or reception QR code gets a plain message, never another guest. See [Scan a guest's invitation QR](custom-app-events#scan-a-guest-s-invitation-qr).
+
 ### CUSTOM APP is now Corp Comm YEP tool (0.74.4)
 - The events module is renamed **Corp Comm YEP tool** (**YEP tool** on the compact home tiles), everywhere it is named: the home screen, the menu, Admin panel → Modules and Roles & permissions, the Service Desk's **Sending email** switch (**Use for Corp Comm YEP tool event emails**) and the guides. Nothing else changes: events, guests, seats, links already sent and permissions stay as they are. See [Running an event in Corp Comm YEP tool](custom-app-events).
 

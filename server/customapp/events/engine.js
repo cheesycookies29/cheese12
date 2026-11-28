@@ -12,7 +12,7 @@
 //   own invitation link: it can only record their reply (seating them on Yes) and that they opened it.
 // Refusals come only from shared/customapp/refusals.js (model.refusal); 400s are input mistakes.
 import { randomUUID } from 'node:crypto';
-import { refusal, bad, cleanText, lookupOf, guestLabel, seatsOnYes } from './model.js';
+import { refusal, bad, cleanText, lookupOf, guestLabel, seatsOnYes, earlierLinks } from './model.js';
 import { seatMessage, invitationMessage, rsvpMessage, rsvpClosesAt } from './message.js';
 import { TABLE_CLASSES, GUEST_CLASSES, SEAT_NUMBERS, FLAGS, POLL_MS, HARD_LIMIT, EVENT_STATUSES, RSVP_ANSWERS, RSVP_ACTOR } from '../../../shared/customapp/statuses.js';
 import { classOK, takenSeats, tableCounts, optionsFor, seatNoRequired, seatStatusFor, isReserved, isConfirmed, whyNot, recommend, firstFreeSeat } from '../../../shared/customapp/seating.js';
@@ -500,7 +500,7 @@ const COMMANDS = {
       if (g.invite?.hash) again++;
       const record = { id: randomUUID(), eventId: ev.id, ...invitationMessage(ev, g), state: 'queued', attempts: 0, lastError: null, createdAt: now, sentAt: null, by: actor.id, tokenSealed: x.sealed, linkBase: base };
       changes.push({ op: 'add', coll: 'caOutbox', record });
-      changes.push(setGuest(g, { invite: { hash: x.hash, state: 'queued', issuedAt: now, by: actor.id, messageId: record.id, base, sentAt: null, openedAt: null, lastError: null, count: (g.invite?.count || 0) + 1 } }));
+      changes.push(setGuest(g, { invite: { hash: x.hash, earlier: earlierLinks(g.invite, 'replaced'), state: 'queued', issuedAt: now, by: actor.id, messageId: record.id, base, sentAt: null, openedAt: null, lastError: null, count: (g.invite?.count || 0) + 1 } }));
       guests.push(g);
     }
     return {
@@ -516,7 +516,7 @@ const COMMANDS = {
     const g = mustGuest(state, cmd.guestId);
     if (!g.invite?.hash) throw bad('This guest has no invitation link that works.');
     return {
-      type: 'revokeInvite', changes: [setGuest(g, { invite: { ...g.invite, hash: null, state: 'revoked', revokedAt: now, revokedBy: actor.id } })], guestIds: [g.id], tableIds: [],
+      type: 'revokeInvite', changes: [setGuest(g, { invite: { ...g.invite, hash: null, earlier: earlierLinks(g.invite, 'revoked'), state: 'revoked', revokedAt: now, revokedBy: actor.id } })], guestIds: [g.id], tableIds: [],
       diff: [{ id: g.id, f: 'invite', from: g.invite.state || 'sent', to: 'revoked' }], reason: cleanText(cmd.reason, 200),
       audit: { action: 'invite-revoke', entityId: g.id, label: guestLabel(g), note: 'Invitation link revoked' }, result: { guestId: g.id },
     };

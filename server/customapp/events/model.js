@@ -77,6 +77,13 @@ export const INVITE_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 export const newInviteToken = () => randomBytes(32).toString('base64url');
 export const inviteHashOf = (token) => createHash('sha256').update(`customapp-invite:${token}`).digest('hex');
 export const inviteLink = (base, code, token) => `${String(base || '').replace(/\/+$/, '')}/event/${code}#i=${token}`;
+// The links a guest had before (0.75): when an invitation is sent again or revoked, the first half of
+// the old link's hash is kept here (the last 5), so a staff member who scans an old QR code is told
+// "replaced" or "revoked" instead of "not an invitation". It never finds the guest: only the current
+// hash does (Scan QR, scan.js). Left out of every export, with the hash.
+export const EARLIER_KEEP = 5;
+export const earlierKey = (hash) => String(hash || '').slice(0, 32);
+export const earlierLinks = (inv, why) => [...(inv?.earlier || []), ...(inv?.hash ? [{ h: earlierKey(inv.hash), why }] : [])].slice(-EARLIER_KEEP);
 
 // A guest's RSVP status as staff see it (RSVP_STATUSES): their answer on the invitation link (or
 // one the Super Administrator recorded), else whether the invitation was opened or sent. A value

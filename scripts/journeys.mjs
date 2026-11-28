@@ -9,7 +9,9 @@
 //   CUSTOM APP (0.72): the guest page in each state, the presence key, the event night on four
 //   devices, the seating sheet, the room plan, and the import check blocking self check-in;
 //   (0.73) groups, walk-ins and substitutes, email cut, and Event control; (0.74) an invitation sent,
-//   opened, answered Yes with the seat reserved at once, both emails, and the door check-in by the link
+//   opened, answered Yes with the seat reserved at once, both emails, and the door check-in by the link;
+//   (0.75) Scan QR with Chromium's fake camera playing a QR code of an invited guest's link, once
+//   through the BarcodeDetector path and once through jsQR in the worker (BarcodeDetector removed)
 // Needs Playwright (the CI job installs it; never part of CORE itself). Exit code 1 on a failure;
 // screenshots of failures go to journeys-output/.
 import { spawn } from 'node:child_process';
@@ -82,8 +84,9 @@ const browser = await chromium.launch();
 const DESK = { viewport: { width: 1280, height: 860 }, deviceScaleFactor: 1 };
 const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true };
 // One signed-in page per account; errors on it are collected.
-async function signIn(username, password = DEMO_PW, opts = DESK) {
-  const context = await browser.newContext(opts);
+async function signIn(username, password = DEMO_PW, opts = DESK, { using = browser, init = null } = {}) {
+  const context = await using.newContext(opts);
+  if (init) await context.addInitScript(init);
   const page = await context.newPage();
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(`page error: ${e.message}`));
@@ -1145,6 +1148,103 @@ await journey('Event invitation: invite, open the link, Yes, seated at once, ema
     await admin('PUT', '/api/helpdesk/settings/outgoing', { enabled: false, host: '', port: 587, security: 'starttls', sameLogin: true }).catch(() => {});
   }
 });
+
+// ----- Scan QR (0.75): a fake camera shows the QR code of the demo guest's invitation link -----
+// Chromium plays a .y4m file as the camera (test/support/fake-camera.js): the code half outside the
+// square for 1.5 s (aiming), then in the middle. Linux Chromium has no BarcodeDetector, so the first
+// run gives the page one that reads with the same jsQR (the page's native path: formats, detect() on
+// the frame, rawValue); the second deletes window.BarcodeDetector and must read in the worker.
+{
+  const { qrY4m, FAKE_CAMERA_FLAGS } = await import('../test/support/fake-camera.js');
+  const { DEMO_INVITE_TOKEN } = await import('../server/customapp/events/demo.js');
+  const demoId = (await lead('GET', '/api/customapp/events')).events.find((e) => e.demo)?.id;
+  const demo = demoId ? await lead('GET', `/api/customapp/events/${demoId}`) : null;
+  const link = demo ? `${BASE}/event/${demo.code}#i=${DEMO_INVITE_TOKEN}` : '';
+  const camFile = path.join(dir, 'scan-camera.y4m');
+  if (demo) qrY4m(link, camFile, { lead: 15 });
+  let camBrowser = null;
+  // The streams the page opened, to check every camera track is stopped afterwards.
+  const watchStreams = () => {
+    window.__streams = [];
+    const gum = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+    if (gum) navigator.mediaDevices.getUserMedia = async (c) => {
+      const st = await gum(c);
+      window.__streams.push(st);
+      return st;
+    };
+  };
+  const NATIVE = `(${watchStreams})();
+    window.BarcodeDetector = class {
+      static async getSupportedFormats() { return ['qr_code', 'ean_13']; }
+      constructor(o) { if (!o?.formats?.includes('qr_code')) throw new TypeError('formats'); }
+      async detect(canvas) {
+        const { default: jsQR } = await import('/js/vendor/jsQR.js');
+        const img = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+        window.__detects = (window.__detects || 0) + 1;
+        const r = jsQR(img.data, img.width, img.height);
+        return r ? [{ rawValue: r.data, format: 'qr_code' }] : [];
+      }
+    };`;
+  const WORKER = `(${watchStreams})(); delete window.BarcodeDetector;`;
+  for (const [label, init, kind, keep, screen] of [['BarcodeDetector', NATIVE, 'native', false, 'find'], ['jsQR in the worker', WORKER, 'worker', true, 'queue']]) {
+    await journey(`Event Scan QR with the camera (${label}): ${screen === 'find' ? 'Find guest' : 'My queue'}, Scan QR, the sheet, Check in${keep ? ', Keep scanning' : ''}`, async (pages) => {
+      if (!demo) throw new Error('No demo event.');
+      camBrowser ||= await chromium.launch({ args: FAKE_CAMERA_FLAGS(camFile) });
+      // The guest the link belongs to, not arrived (the first run checked them in: undone here).
+      const found = await lead('POST', `/api/customapp/events/${demoId}/scan`, { text: link });
+      if (!found.found) throw new Error(`The demo link: ${JSON.stringify(found)}`);
+      if (found.guest.arrival.state === 'checked_in') await lead('POST', `/api/customapp/events/${demoId}/commands`, { type: 'undoCheckIn', guestId: found.guestId, reason: 'Journey again' });
+      const p = await signIn('event.demo', DEMO_PW, PHONE, { using: camBrowser, init });
+      pages.push(p);
+      await go(p, `/customapp/${screen}?e=${demoId}`);
+      const before = p.url();
+      await p.click('.ca-scan-fab');
+      await p.waitForSelector(`.ca-scan-body[data-decoder="${kind}"]`, { timeout: 8000 });
+      if (keep) await p.check('.ca-scan [data-keep]');
+      await p.waitForSelector('.ca-sheet [data-checkin]', { timeout: 12000 });
+      const title = (await textOf(p, '.ca-sheet .modal-title h2')).trim();
+      if (title !== found.guest.displayName) throw new Error(`The sheet is for ${title}, not ${found.guest.displayName}.`);
+      if (!/Not your guest/.test(await textOf(p, '.ca-sheet'))) throw new Error('event.demo should only check this guest in.');
+      if (p.url() !== before || /#i=|\/event\//.test(p.url())) throw new Error(`The page moved to ${p.url()}`);
+      if (kind === 'native' && !(await p.evaluate(() => window.__detects > 0))) throw new Error('BarcodeDetector was not used.');
+      await p.click('.ca-sheet [data-checkin]');
+      if (keep) {
+        // Keep scanning: the sheet closes and the scanner is open again for the next guest.
+        await p.waitForSelector('.ca-scan-body', { timeout: 8000 });
+        await p.waitForFunction(() => !document.querySelector('.ca-sheet'), null, { timeout: 8000 });
+        await p.keyboard.press('Escape');
+        await p.waitForFunction(() => !document.querySelector('.ca-scan'), null, { timeout: 4000 });
+      } else {
+        await p.waitForFunction(() => /Checked in \d/.test(document.querySelector('.ca-sheet')?.innerText || ''), null, { timeout: 8000 });
+      }
+      await noErrorToast(p, 'Check in');
+      const g = (await lead('GET', `/api/customapp/events/${demoId}/guests/${found.guestId}`)).guest;
+      if (g.arrival.state !== 'checked_in') throw new Error(`After Check in: ${g.arrival.state}`);
+      // Every camera the page opened is off again.
+      await p.waitForTimeout(300);
+      const live = await p.evaluate(() => window.__streams.flatMap((st) => st.getTracks()).filter((t) => t.readyState !== 'ended').length);
+      if (live) throw new Error(`${live} camera track(s) still running.`);
+    });
+  }
+  await camBrowser?.close();
+  // No camera to be had (this browser has none, and no fake one): the reason in words, and Find
+  // guest one tap away; the typed search was never blocked.
+  await journey('Event Scan QR without a camera: the reason in plain words, then Find guest', async (pages) => {
+    const p = await signIn('event.demo', DEMO_PW, PHONE);
+    pages.push(p);
+    await go(p, `/customapp/find?e=${demoId}`);
+    await p.click('.ca-scan-fab');
+    await p.waitForSelector('.ca-scan-body[data-problem]', { timeout: 8000 });
+    const why = await p.$eval('.ca-scan-body', (e) => e.dataset.problem);
+    const said = await textOf(p, '.ca-scan [data-msg]');
+    if (!['denied', 'none', 'busy'].includes(why) || !/Find guest/.test(said)) throw new Error(`${why}: ${said}`);
+    if (why === 'denied' && !/iPhone[\s\S]*Android/.test(said)) throw new Error(`No steps to allow the camera: ${said}`);
+    await p.click('.ca-scan [data-find]');
+    await p.waitForFunction(() => !document.querySelector('.ca-scan') && document.activeElement?.id === 'ca-q', null, { timeout: 4000 });
+    await p.keyboard.type('Salazar');
+    await p.waitForSelector('#ca-results [data-guest]', { timeout: 8000 });
+  });
+}
 
 // 6. Every page in every role's menu at phone width
 const ROLES = [['employee.demo'], ['hr.demo'], ['payroll.demo'], ['it.demo'], ['sales.demo'], ['pm.demo'], ['eventlead.demo'], ['event.demo'], [ADMIN.username, ADMIN.password]];

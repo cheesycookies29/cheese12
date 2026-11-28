@@ -29,6 +29,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.75.0-alpha',
+    date: '2026-11-28',
+    title: 'Scan QR: staff scan a guest\'s invitation inside Corp Comm YEP tool',
+    modules: ['customapp', 'system'],
+    notes: 'Until now an usher scanned a guest\'s invitation QR with the phone\'s own camera, which opened the guest\'s personal page in the usher\'s browser (the link left in its history, a tab per guest, no staff screen). Scan QR reads the code inside CORE and opens the staff guest sheet. Decoding: the browser\'s BarcodeDetector (qr_code) where it exists (Android Chrome), else jsQR 1.4.0 (Apache-2.0, vendored from the npm package as an ES module in public/js/vendor/jsQR.js with its license beside it) in a module worker; about 10 frames a second, cropped to the square shown and at most 480 px; the camera stops on a read, on close, on navigation and when the page is hidden. Lookup: POST /api/customapp/events/:id/scan parses only this site\'s /event/<code>#i=<token> links for the same event (or a bare token), hashes the token and finds the guest; staff of the event only, 60 scans a minute per person (event-scan), not audited (a read, like Find guest); the token is never returned or logged. Replaced and revoked links are recognised by the first half of their hash, kept on the guest (invite.earlier, the last 5) and left out of exports, and never reveal a guest. Permissions-Policy allows the camera for CORE\'s own pages (camera=(self)); the microphone stays off. Journeys run Chromium with a fake camera playing a QR code of the demo guest\'s link, through both decoding paths.',
+    changes: [
+      ['new', 'customapp', 'Scan QR on Find guest and My queue (a round button under the thumb on phones): the back camera with a viewfinder, a torch and camera switch where available, a short vibration on a read, then the guest\'s sheet with Check in (and seating as their scope allows). Keep scanning reopens the scanner after Check in; Scan next on the sheet. Plain messages for an earlier, revoked or reception QR, another event\'s or site\'s code, a guest already checked in (with the time and who) and a substitute; for a blocked camera (how to allow it on iPhone and Android), no camera, a busy camera and an insecure address.'],
+      ['new', 'customapp', 'POST /api/customapp/events/:id/scan (server/customapp/events/scan.js) with its own rate limit bucket event-scan; invite and revokeInvite keep the earlier link\'s hash half in invite.earlier.'],
+      ['improved', 'customapp', 'The check-in toast names the reserved table and seat; the guide section "Scan a guest\'s invitation QR", screenshots of Find guest and My queue retaken, a new one of the scanner.'],
+      ['improved', 'system', 'Permissions-Policy camera=(self) (was camera=()), so CORE\'s own pages may ask for the camera; other sites\' frames still may not, and the microphone stays off.'],
+    ],
+  },
+  {
     version: '0.74.4-alpha',
     date: '2026-11-28',
     title: 'CUSTOM APP renamed Corp Comm YEP tool',

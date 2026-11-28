@@ -108,17 +108,25 @@ try {
       server = await startServer();
     }
     const phone = s.viewport === 'phone';
-    const context = await browser.newContext(phone ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
-    if (s.dark) await context.addInitScript(() => localStorage.setItem('core-theme', 'dark'));
-    else await context.addInitScript(() => localStorage.setItem('core-theme', 'light'));
-    const page = await context.newPage();
+    const contextOpts = phone ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 };
+    const newPage = async (b) => {
+      const context = await b.newContext(contextOpts);
+      if (s.dark) await context.addInitScript(() => localStorage.setItem('core-theme', 'dark'));
+      else await context.addInitScript(() => localStorage.setItem('core-theme', 'light'));
+      return context.newPage();
+    };
+    let page = await newPage(browser);
+    let camBrowser = null;
     const wait = s.wait ?? 800;
-    try {
+    const signIn = async () => {
       await page.goto(`${server.url}/`);
       await page.fill('input[name=username]', s.user);
       await page.fill('input[name=password]', s.password || (s.user === 'admin' ? ADMIN.password : 'demo1234'));
       await page.click('button[type=submit]');
       await page.waitForTimeout(900);
+    };
+    try {
+      await signIn();
       // "api": [[method, path, body], …]: changes made as that user first (e.g. so a list has entries).
       // A fourth item names the answer, to be used later as {saved:name.field} or {link:name}.
       for (const step of s.api || []) {
@@ -129,6 +137,18 @@ try {
         }, [method, p, body]);
         if (!r.ok) throw new Error(`${method} ${p}: ${r.text}`);
         if (step[3]) saved.set(step[3], JSON.parse(r.text));
+      }
+      // "camera": { qr: "text", lead }: Chromium's fake camera shows a QR code of that text (Scan QR,
+      // 0.75; {base} is the server's address), after `lead` tenths of a second of it coming into view.
+      // A browser of its own (the camera is chosen when Chromium starts), signed in again.
+      if (s.camera) {
+        const { qrY4m, FAKE_CAMERA_FLAGS } = await import('../test/support/fake-camera.js');
+        const file = path.join(os.tmpdir(), `core-shots-camera-${process.pid}.y4m`);
+        qrY4m(await resolve(page, s.camera.qr.replace('{base}', server.url)), file, { lead: s.camera.lead || 0 });
+        await page.context().close();
+        camBrowser = await chromium.launch({ args: FAKE_CAMERA_FLAGS(file) });
+        page = await newPage(camBrowser);
+        await signIn();
       }
       await page.goto(`${server.url}${await resolve(page, s.url)}`);
       await page.waitForTimeout(wait);
@@ -178,7 +198,8 @@ try {
       failed.push(`${s.file}: ${err.message.split('\n')[0]}`);
       console.log('✗', s.file, err.message.split('\n')[0]);
     }
-    await context.close();
+    await page.context().close();
+    await camBrowser?.close();
   }
 } finally {
   await browser.close();

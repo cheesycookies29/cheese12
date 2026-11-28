@@ -1,7 +1,7 @@
 ---
 id: custom-app-events
 title: Running an event in Corp Comm YEP tool
-summary: For event staff, the event's Super Administrator and administrators: personal invitations by email with a QR code, the guest's Yes or No with the seat reserved at once on Yes, check-in at the door by the same link, My queue, the guest page guests check in on, the room plan, finding and checking in a guest (also by the code the guest page gives), seating at a table and chair with recommended tables, seating a group together, walk-ins and substitutes, seat emails, Event control (the exceptions inbox, health, staff and their queues, switches, the reception QR, exports, the printed plan and the offline pack, reconciling paper seating, handing over the Super Administrator), Setup (the room, tables, staff, the guest list import and its check), and what to do on the night if something fails.
+summary: For event staff, the event's Super Administrator and administrators: personal invitations by email with a QR code, the guest's Yes or No with the seat reserved at once on Yes, check-in at the door by the same link, Scan QR (staff scan the guest's invitation QR with the camera to open their sheet), My queue, the guest page guests check in on, the room plan, finding and checking in a guest (also by the code the guest page gives), seating at a table and chair with recommended tables, seating a group together, walk-ins and substitutes, seat emails, Event control (the exceptions inbox, health, staff and their queues, switches, the reception QR, exports, the printed plan and the offline pack, reconciling paper seating, handing over the Super Administrator), Setup (the room, tables, staff, the guest list import and its check), and what to do on the night if something fails.
 roles: eventstaff, admin
 apps: customapp
 order: 45
@@ -162,12 +162,47 @@ On their link the guest sees their name, the event (date and time, venue, dress 
 
 ### Check in at the door with the invitation
 
-On the night, while **Self check-in open** is on and the window is open, the guest's link offers **Check in**, with no surname to type: the link proves who they are. Then it shows their table in large type, and their seat, as the guest page does. The usher can also scan the QR code in the guest's email with any phone: the same page opens, with **Check in**.
+On the night, while **Self check-in open** is on and the window is open, the guest's link offers **Check in**, with no surname to type: the link proves who they are. Then it shows their table in large type, and their seat, as the guest page does. Staff scan the QR code with **Scan QR** inside Corp Comm YEP tool (see **Scan a guest's invitation QR**), not with the phone's own camera app: that would open the guest's personal page on the staff phone and keep their link in its history.
 
 - A reserved seat becomes *Seated* at check-in. A guest with no seat yet waits for a table as usual.
 - Checking in twice changes nothing. Before the doors open the link says check-in opens on the night.
 - Everyone else uses the reception QR and their surname as before; a guest does not need to have answered to be checked in.
 - A link that is revoked, replaced or mistyped gives the same desk code as the guest page (*Please contact the organisers and quote this code: R-1234*); type it in **Find guest** to see why.
+
+### Scan a guest's invitation QR
+
+**Scan QR** (the camera button) is on **Find guest** and **My queue**; on a phone it is the round **Scan QR** button at the bottom right, under your thumb. It reads the QR code in the guest's invitation email and opens their sheet, without opening the guest's own page.
+
+1. Tap **Scan QR**. The first time, the phone asks whether CORE may use the camera: choose **Allow**.
+2. Hold the guest's QR code inside the white square, about a hand's width from the phone. The code can be printed, or on the guest's phone screen: ask them to turn the brightness up all the way. Use **Light** in a dark room, where the phone has a torch, and **Switch camera** if the wrong camera opened.
+3. When the code is read, the phone buzzes briefly (on phones that can) and the camera turns off. The guest's sheet opens: tap **Check in**. If the guest is yours (or you are the Super Administrator), choose their table as usual; if not, the sheet says *Not your guest*: check them in, and their owner seats them.
+4. **Scan next** on the sheet opens the scanner again for the next guest.
+
+![Scan QR on a phone: the guest's invitation QR coming into the square](custom-app-events-scan.jpg)
+
+For the door, tick **Keep scanning** in the scanner: after **Check in** the sheet closes and the scanner opens again by itself. CORE remembers the choice on that phone.
+
+What the scanner may say instead of opening a sheet:
+
+| It says | What it means | What to do |
+|---|---|---|
+| *Already checked in at 7:12 PM by Sam* (on the sheet) | The guest came in before | Nothing to check in; help them to their table |
+| *Walk-in or substitute: …* (on the sheet) | A substitute was recorded for this invitee | Read the line: the Super Administrator decides, or the substitute is checked in on their own sheet |
+| *This invitation link was replaced (a newer one was sent)* | The invitation was sent again; only the newest email's QR works | Ask for the newest email, or use **Find guest** |
+| *This invitation link was revoked* | The Super Administrator stopped that link | Use **Find guest**, or refer the guest to the Super Administrator |
+| *That is the reception QR; scan the guest's invitation QR, or use Find guest* | The code on the reception poster, not the guest's own | Scan the guest's QR, or type their name |
+| *Not an invitation for this event* | Another event's code, another site's, or not an invitation | Use **Find guest** |
+
+None of these messages names a guest. **Find guest** (type the name) always works, with or without the camera: **Type the name in Find guest** in the scanner goes straight to the search box.
+
+If the camera does not start, the scanner says why:
+
+- **The camera is blocked for CORE** (you chose *Don't allow*, or it was turned off). On an **iPhone (Safari)**: tap **aA** in the address bar → **Website Settings** → **Camera** → **Allow**; if it stays blocked, **Settings → Safari → Camera → Allow**. On **Android (Chrome)**: tap the icon left of the address → **Permissions** (or **Site settings**) → **Camera** → **Allow**. Then tap **Try again**.
+- **The camera is busy**: a video call or the camera app has it. Close that app, then **Try again**.
+- **No camera found**: use a phone, or type the name.
+- **The camera needs a secure address**: CORE was opened without *https://*. Open it at its https:// address (for the event, https://ltdc-core.com).
+
+> **Tip:** The scanner turns the camera off as soon as it reads a code, when you close it (**Close**, **×** or the Escape key), or when you switch to another app.
 
 ### Seat emails
 
@@ -228,7 +263,7 @@ Codes are kept for 3 hours, and until CORE restarts; without the code, search by
 
 ### Find a guest at the desk
 
-1. In **Find guest**, type part of the surname, the first name, the company or the ref (or a guest page code). Surnames are found with or without spaces and accents (*delacruz* finds *Dela Cruz*).
+1. In **Find guest**, type part of the surname, the first name, the company or the ref (or a guest page code). Surnames are found with or without spaces and accents (*delacruz* finds *Dela Cruz*). A guest with their invitation at hand: tap **Scan QR** instead (see [Scan a guest's invitation QR](custom-app-events#scan-a-guest-s-invitation-qr)).
 2. For your own guests, the sheet shows their mobile and email masked (*•••• 4417*), enough to confirm who they are without reading the number out. For others' guests you see their name, company, industry and table.
 3. Anyone on the staff can **Check in** any guest. Seating is for the guest's owner (or the Super Administrator).
 
@@ -346,9 +381,9 @@ On the day (for the Super Administrator and the on-call developer; the on-call d
 | Screen | What it is for |
 |---|---|
 | **Events** | The events you are part of, with their counts; **New event** for administrators |
-| **My queue** | Where Event staff start: your guests waiting for a table (oldest first, with how long; tick several to **Seat together**), those seated, Find guest and **Add walk-in**; it updates by itself |
+| **My queue** | Where Event staff start: your guests waiting for a table (oldest first, with how long; tick several to **Seat together**), those seated, Find guest, **Scan QR** and **Add walk-in**; it updates by itself |
 | **Room plan** | The room with every table and chair; choose a waiting guest to see their best tables, then a chair, then **Seat here** |
-| **Find guest** | Search by name, company or ref, filter by who is waiting, not arrived, seated or reserved, and by the answer to the invitation (**Said Yes**, **Said No**, **No reply**, **Not invited**); tap a guest to check them in, seat them, reserve a seat or record a substitute; **Add walk-in** |
+| **Find guest** | Search by name, company or ref, filter by who is waiting, not arrived, seated or reserved, and by the answer to the invitation (**Said Yes**, **Said No**, **No reply**, **Not invited**); tap a guest to check them in, seat them, reserve a seat or record a substitute; **Scan QR** reads a guest's invitation QR with the camera and opens their sheet; **Add walk-in** |
 | **Tables** | Every table with its type, owner and meter of chairs; tap one for its chairs and who sits on them |
 | **Event control** | The counts, health, the **Exceptions** inbox (walk-ins, substitutes, groups, guests with no seat, failed emails, answers that need you), **Invitations** (settings, preview, test, send, every guest's RSVP), the room plan (move, swap, release), staff and their queues (**All to…**, **One by one…**), tables out of use, the switches and the reception QR, the exports, the printable seating plan and the offline pack, **Reconcile paper seating**, the seating rules check, handing over the Super Administrator |
 | **Guest page** (*/event/…*) | Guests check themselves in on their phone and see their table; with their invitation link (*…#i=…*) they answer Yes or No, see their reserved seat, and check in at the door; no account |
@@ -397,6 +432,9 @@ No. It is a reservation like any other: it holds the chair until the guest arriv
 
 **Two guests said Yes to the last chair at once. Who got it?**
 The one whose answer reached CORE first; the other was told *We will email your table* and is in **Exceptions**. A table never goes over its chairs.
+
+**Why not scan the guest's QR with the phone's own camera?**
+The phone's camera app opens the guest's personal page in your browser: their link stays in your history, and there is no staff screen. **Scan QR** finds the guest inside CORE and opens their sheet; the link is never opened or kept.
 
 **Does a guest have to answer the invitation to be let in?**
 No. The answer is for planning. On the night anyone on the list is checked in, by their invitation link or by the surname check-in or at the desk.
